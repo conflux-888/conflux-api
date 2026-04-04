@@ -30,6 +30,7 @@ func NewService(eventRepo *event.Repository, clusterRepo *Repository) *Service {
 func (s *Service) SubmitReport(ctx context.Context, userID string, req CreateReportRequest) (*event.Event, error) {
 	uid, err := bson.ObjectIDFromHex(userID)
 	if err != nil {
+		log.Warn().Str("user_id", userID).Msg("[report.SubmitReport] invalid user id")
 		return nil, err
 	}
 
@@ -101,13 +102,17 @@ func (s *Service) handleClustering(ctx context.Context, e *event.Event) {
 func (s *Service) GetMyReports(ctx context.Context, userID string, page, limit int) ([]event.Event, *response.Pagination, error) {
 	uid, err := bson.ObjectIDFromHex(userID)
 	if err != nil {
+		log.Warn().Str("user_id", userID).Msg("[report.GetMyReports] invalid user id")
 		return nil, nil, err
 	}
 
 	events, total, err := s.eventRepo.FindByReportedBy(ctx, uid, page, limit)
 	if err != nil {
+		log.Error().Err(err).Str("user_id", userID).Msg("[report.GetMyReports] failed to query reports")
 		return nil, nil, err
 	}
+
+	log.Info().Str("user_id", userID).Int("count", len(events)).Int64("total", total).Msg("[report.GetMyReports] reports listed")
 
 	pagination := &response.Pagination{
 		Page:  page,
@@ -121,12 +126,20 @@ func (s *Service) GetMyReports(ctx context.Context, userID string, page, limit i
 func (s *Service) DeleteMyReport(ctx context.Context, userID, eventID string) error {
 	uid, err := bson.ObjectIDFromHex(userID)
 	if err != nil {
+		log.Warn().Str("user_id", userID).Msg("[report.DeleteMyReport] invalid user id")
 		return event.ErrNotFound
 	}
 	eid, err := bson.ObjectIDFromHex(eventID)
 	if err != nil {
+		log.Warn().Str("event_id", eventID).Msg("[report.DeleteMyReport] invalid event id")
 		return event.ErrNotFound
 	}
 
-	return s.eventRepo.SoftDeleteByID(ctx, eid, uid)
+	if err := s.eventRepo.SoftDeleteByID(ctx, eid, uid); err != nil {
+		log.Error().Err(err).Str("user_id", userID).Str("event_id", eventID).Msg("[report.DeleteMyReport] failed to delete report")
+		return err
+	}
+
+	log.Info().Str("user_id", userID).Str("event_id", eventID).Msg("[report.DeleteMyReport] report deleted")
+	return nil
 }
