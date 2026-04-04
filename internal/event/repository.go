@@ -52,21 +52,21 @@ func (r *Repository) UpsertByExternalID(ctx context.Context, externalID, source 
 	filter := bson.M{"external_id": externalID, "source": source}
 	update := bson.M{
 		"$set": bson.M{
-			"event_type":     e.EventType,
+			"event_type":      e.EventType,
 			"sub_event_type":  e.SubEventType,
 			"event_root_code": e.EventRootCode,
 			"severity":        e.Severity,
-			"title":          e.Title,
-			"description":    e.Description,
-			"country":        e.Country,
-			"location_name":  e.LocationName,
-			"location":       e.Location,
-			"num_sources":    e.NumSources,
-			"num_articles":   e.NumArticles,
-			"actors":         e.Actors,
-			"event_date":     e.EventDate,
-			"is_deleted":     false,
-			"updated_at":     now,
+			"title":           e.Title,
+			"description":     e.Description,
+			"country":         e.Country,
+			"location_name":   e.LocationName,
+			"location":        e.Location,
+			"num_sources":     e.NumSources,
+			"num_articles":    e.NumArticles,
+			"actors":          e.Actors,
+			"event_date":      e.EventDate,
+			"is_deleted":      false,
+			"updated_at":      now,
 		},
 		"$setOnInsert": bson.M{
 			"external_id": externalID,
@@ -91,21 +91,21 @@ func (r *Repository) BulkUpsert(ctx context.Context, events []Event, source stri
 		filter := bson.M{"external_id": e.ExternalID, "source": source}
 		update := bson.M{
 			"$set": bson.M{
-				"event_type":     e.EventType,
+				"event_type":      e.EventType,
 				"sub_event_type":  e.SubEventType,
 				"event_root_code": e.EventRootCode,
 				"severity":        e.Severity,
-				"title":          e.Title,
-				"description":    e.Description,
-				"country":        e.Country,
-				"location_name":  e.LocationName,
-				"location":       e.Location,
-				"num_sources":    e.NumSources,
-				"num_articles":   e.NumArticles,
-				"actors":         e.Actors,
-				"event_date":     e.EventDate,
-				"is_deleted":     false,
-				"updated_at":     now,
+				"title":           e.Title,
+				"description":     e.Description,
+				"country":         e.Country,
+				"location_name":   e.LocationName,
+				"location":        e.Location,
+				"num_sources":     e.NumSources,
+				"num_articles":    e.NumArticles,
+				"actors":          e.Actors,
+				"event_date":      e.EventDate,
+				"is_deleted":      false,
+				"updated_at":      now,
 			},
 			"$setOnInsert": bson.M{
 				"external_id": e.ExternalID,
@@ -198,4 +198,101 @@ func (r *Repository) SoftDeleteByID(ctx context.Context, id, userID bson.ObjectI
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (r *Repository) Find(ctx context.Context, f EventFilter) ([]Event, int64, error) {
+	filter := bson.M{"is_deleted": false}
+
+	if len(f.Severity) > 0 {
+		filter["severity"] = bson.M{"$in": f.Severity}
+	}
+	if f.EventType != "" {
+		filter["event_type"] = f.EventType
+	}
+	if f.Country != "" {
+		filter["country"] = f.Country
+	}
+	if f.Source != "" {
+		filter["source"] = f.Source
+	}
+	if f.DateFrom != nil || f.DateTo != nil {
+		dateFilter := bson.M{}
+		if f.DateFrom != nil {
+			dateFilter["$gte"] = *f.DateFrom
+		}
+		if f.DateTo != nil {
+			dateFilter["$lte"] = *f.DateTo
+		}
+		filter["event_date"] = dateFilter
+	}
+	if f.BBox != nil {
+		filter["location"] = bson.M{
+			"$geoWithin": bson.M{
+				"$box": bson.A{
+					bson.A{f.BBox[0], f.BBox[1]}, // [min_lng, min_lat]
+					bson.A{f.BBox[2], f.BBox[3]}, // [max_lng, max_lat]
+				},
+			},
+		}
+	}
+
+	total, err := r.col.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var sortKey bson.D
+	switch f.Sort {
+	case "date_asc":
+		sortKey = bson.D{{Key: "event_date", Value: 1}}
+	case "severity":
+		sortKey = bson.D{{Key: "severity", Value: 1}, {Key: "event_date", Value: -1}}
+	default:
+		sortKey = bson.D{{Key: "event_date", Value: -1}}
+	}
+
+	skip := int64((f.Page - 1) * f.Limit)
+	cursor, err := r.col.Find(ctx, filter, options.Find().SetSort(sortKey).SetSkip(skip).SetLimit(int64(f.Limit)))
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var events []Event
+	if err := cursor.All(ctx, &events); err != nil {
+		return nil, 0, err
+	}
+
+	return events, total, nil
+}
+
+func (r *Repository) FindNearby(ctx context.Context, lng, lat, radiusKM float64, severity string, limit int) ([]Event, error) {
+	query := bson.M{"is_deleted": false}
+	if severity != "" {
+		query["severity"] = severity
+	}
+
+	pipeline := mongo.Pipeline{
+		{{Key: "$geoNear", Value: bson.M{
+			"near":          GeoJSONPoint{Type: "Point", Coordinates: [2]float64{lng, lat}},
+			"distanceField": "distance",
+			"maxDistance":   radiusKM * 1000, // km to meters
+			"query":         query,
+			"spherical":     true,
+		}}},
+		{{Key: "$limit", Value: limit}},
+	}
+
+	cursor, err := r.col.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var events []Event
+	if err := cursor.All(ctx, &events); err != nil {
+		return nil, err
+	}
+
+	return events, nil
 }

@@ -39,8 +39,10 @@ func main() {
 	userSvc := user.NewService(userRepo, cfg.JWTSecret)
 	userHandler := user.NewHandler(userSvc)
 
-	// Event domain (shared repository)
+	// Event domain
 	eventRepo := event.NewRepository(db)
+	eventSvc := event.NewService(eventRepo)
+	eventHandler := event.NewHandler(eventSvc)
 
 	// Report domain
 	reportClusterRepo := report.NewRepository(db)
@@ -56,6 +58,7 @@ func main() {
 	// Router
 	router := server.NewRouter()
 	user.RegisterRoutes(router, userHandler, authMW)
+	event.RegisterRoutes(router, eventHandler, authMW)
 	report.RegisterRoutes(router, reportHandler, authMW)
 	sync.RegisterRoutes(router, syncHandler, authMW)
 
