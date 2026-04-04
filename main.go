@@ -10,8 +10,10 @@ import (
 	"github.com/conflux-888/conflux-api/internal/common/logger"
 	"github.com/conflux-888/conflux-api/internal/common/middleware"
 	"github.com/conflux-888/conflux-api/internal/config"
+	"github.com/conflux-888/conflux-api/internal/event"
 	"github.com/conflux-888/conflux-api/internal/infrastructure/database"
 	"github.com/conflux-888/conflux-api/internal/infrastructure/server"
+	"github.com/conflux-888/conflux-api/internal/sync"
 	"github.com/conflux-888/conflux-api/internal/user"
 	"github.com/rs/zerolog/log"
 )
@@ -36,9 +38,22 @@ func main() {
 	userSvc := user.NewService(userRepo, cfg.JWTSecret)
 	userHandler := user.NewHandler(userSvc)
 
+	// Event domain (shared repository)
+	eventRepo := event.NewRepository(db)
+
+	// Sync domain
+	syncClient := sync.NewClient()
+	syncStateRepo := sync.NewStateRepository(db)
+	syncSvc := sync.NewService(syncClient, eventRepo, syncStateRepo, cfg.SyncIntervalMinutes)
+	syncHandler := sync.NewHandler(syncSvc)
+
 	// Router
 	router := server.NewRouter()
 	user.RegisterRoutes(router, userHandler, authMW)
+	sync.RegisterRoutes(router, syncHandler, authMW)
+
+	// Start background sync
+	go syncSvc.Start(ctx)
 
 	// Start server
 	srv := &http.Server{

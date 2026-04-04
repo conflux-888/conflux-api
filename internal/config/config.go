@@ -12,8 +12,6 @@ type Config struct {
 	MongoURI            string
 	MongoDatabase       string
 	JWTSecret           string
-	ACLEDUsername        string
-	ACLEDPassword        string
 	SyncIntervalMinutes int
 	LogLevel            string
 }
@@ -26,8 +24,6 @@ func Load() *Config {
 		MongoURI:            getEnv("MONGODB_URI", "mongodb://localhost:27017"),
 		MongoDatabase:       getEnv("MONGODB_DATABASE", "conflux"),
 		JWTSecret:           getEnv("JWT_SECRET", "change-me-in-production"),
-		ACLEDUsername:        os.Getenv("ACLED_USERNAME"),
-		ACLEDPassword:        os.Getenv("ACLED_PASSWORD"),
 		SyncIntervalMinutes: getEnvInt("SYNC_INTERVAL_MINUTES", 15),
 		LogLevel:            getEnv("LOG_LEVEL", "info"),
 	}
