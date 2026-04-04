@@ -13,6 +13,7 @@ import (
 	"github.com/conflux-888/conflux-api/internal/event"
 	"github.com/conflux-888/conflux-api/internal/infrastructure/database"
 	"github.com/conflux-888/conflux-api/internal/infrastructure/server"
+	"github.com/conflux-888/conflux-api/internal/report"
 	"github.com/conflux-888/conflux-api/internal/sync"
 	"github.com/conflux-888/conflux-api/internal/user"
 	"github.com/rs/zerolog/log"
@@ -41,6 +42,11 @@ func main() {
 	// Event domain (shared repository)
 	eventRepo := event.NewRepository(db)
 
+	// Report domain
+	reportClusterRepo := report.NewRepository(db)
+	reportSvc := report.NewService(eventRepo, reportClusterRepo)
+	reportHandler := report.NewHandler(reportSvc)
+
 	// Sync domain
 	syncClient := sync.NewClient()
 	syncStateRepo := sync.NewStateRepository(db)
@@ -50,6 +56,7 @@ func main() {
 	// Router
 	router := server.NewRouter()
 	user.RegisterRoutes(router, userHandler, authMW)
+	report.RegisterRoutes(router, reportHandler, authMW)
 	sync.RegisterRoutes(router, syncHandler, authMW)
 
 	// Start background sync

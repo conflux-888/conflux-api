@@ -154,3 +154,48 @@ func (r *Repository) FindByID(ctx context.Context, id bson.ObjectID) (*Event, er
 	}
 	return &e, err
 }
+
+func (r *Repository) Create(ctx context.Context, e *Event) error {
+	now := time.Now()
+	e.CreatedAt = now
+	e.UpdatedAt = now
+	_, err := r.col.InsertOne(ctx, e)
+	return err
+}
+
+func (r *Repository) FindByReportedBy(ctx context.Context, userID bson.ObjectID, page, limit int) ([]Event, int64, error) {
+	filter := bson.M{"reported_by": userID, "is_deleted": false}
+
+	total, err := r.col.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	skip := int64((page - 1) * limit)
+	cursor, err := r.col.Find(ctx, filter, options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}}).SetSkip(skip).SetLimit(int64(limit)))
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var events []Event
+	if err := cursor.All(ctx, &events); err != nil {
+		return nil, 0, err
+	}
+
+	return events, total, nil
+}
+
+func (r *Repository) SoftDeleteByID(ctx context.Context, id, userID bson.ObjectID) error {
+	filter := bson.M{"_id": id, "reported_by": userID, "is_deleted": false}
+	update := bson.M{"$set": bson.M{"is_deleted": true, "updated_at": time.Now()}}
+
+	result, err := r.col.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
