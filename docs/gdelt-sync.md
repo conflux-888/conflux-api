@@ -147,8 +147,8 @@ Stored in MongoDB `sync_state` collection with fixed `_id: "gdelt"`:
 
 ## Admin Endpoints
 
-- `GET /admin/sync/status` — view current sync state
-- `POST /admin/sync/trigger` — manually trigger a sync cycle (runs synchronously)
+- `GET /api/v1/admin/sync/status` — view current sync state
+- `POST /api/v1/admin/sync/trigger` — manually trigger a sync cycle (runs synchronously)
 
 ## Key Files
 

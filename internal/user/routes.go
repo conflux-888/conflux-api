@@ -2,7 +2,7 @@ package user
 
 import "github.com/gin-gonic/gin"
 
-func RegisterRoutes(r *gin.Engine, h *Handler, authMiddleware gin.HandlerFunc) {
+func RegisterRoutes(r *gin.RouterGroup, h *Handler, authMiddleware gin.HandlerFunc) {
 	auth := r.Group("/auth")
 	{
 		auth.POST("/register", h.HandleRegister)

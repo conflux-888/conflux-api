@@ -20,6 +20,18 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// HandleCreateReport godoc
+// @Summary      Submit a user report
+// @Description  Creates a threat event report and auto-clusters with nearby reports
+// @Tags         reports
+// @Accept       json
+// @Produce      json
+// @Param        request  body      CreateReportRequest  true  "Report data"
+// @Success      201      {object}  map[string]interface{}
+// @Failure      400      {object}  map[string]interface{}
+// @Failure      401      {object}  map[string]interface{}
+// @Security     BearerAuth
+// @Router       /reports [post]
 func (h *Handler) HandleCreateReport(c *gin.Context) {
 	userID := middleware.UserIDFromContext(c)
 
@@ -39,6 +51,17 @@ func (h *Handler) HandleCreateReport(c *gin.Context) {
 	response.Success(c, http.StatusCreated, e)
 }
 
+// HandleGetMyReports godoc
+// @Summary      List my reports
+// @Description  Returns paginated list of the authenticated user's reports
+// @Tags         reports
+// @Produce      json
+// @Param        page   query  int  false  "Page number"     default(1)
+// @Param        limit  query  int  false  "Items per page"  default(20)
+// @Success      200    {object}  map[string]interface{}
+// @Failure      401    {object}  map[string]interface{}
+// @Security     BearerAuth
+// @Router       /reports/me [get]
 func (h *Handler) HandleGetMyReports(c *gin.Context) {
 	userID := middleware.UserIDFromContext(c)
 
@@ -61,6 +84,17 @@ func (h *Handler) HandleGetMyReports(c *gin.Context) {
 	response.List(c, events, *pagination)
 }
 
+// HandleDeleteReport godoc
+// @Summary      Delete my report
+// @Description  Soft-deletes a report (only the owner can delete)
+// @Tags         reports
+// @Produce      json
+// @Param        id   path  string  true  "Report/Event ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Failure      404  {object}  map[string]interface{}
+// @Security     BearerAuth
+// @Router       /reports/{id} [delete]
 func (h *Handler) HandleDeleteReport(c *gin.Context) {
 	userID := middleware.UserIDFromContext(c)
 	eventID := c.Param("id")

@@ -7,6 +7,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/conflux-888/conflux-api/swagger"
 	"github.com/conflux-888/conflux-api/internal/common/logger"
 	"github.com/conflux-888/conflux-api/internal/common/middleware"
 	"github.com/conflux-888/conflux-api/internal/config"
@@ -17,8 +18,19 @@ import (
 	"github.com/conflux-888/conflux-api/internal/sync"
 	"github.com/conflux-888/conflux-api/internal/user"
 	"github.com/rs/zerolog/log"
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// @title           Conflux API
+// @version         1.0
+// @description     Global Threat Report API — aggregates conflict events from GDELT and user reports.
+// @host            localhost:8080
+// @BasePath        /api/v1
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter your Bearer token as: Bearer <token>
 func main() {
 	cfg := config.Load()
 	logger.Init(cfg.LogLevel)
@@ -56,11 +68,14 @@ func main() {
 	syncHandler := sync.NewHandler(syncSvc)
 
 	// Router
-	router := server.NewRouter()
-	user.RegisterRoutes(router, userHandler, authMW)
-	event.RegisterRoutes(router, eventHandler, authMW)
-	report.RegisterRoutes(router, reportHandler, authMW)
-	sync.RegisterRoutes(router, syncHandler, authMW)
+	router, v1 := server.NewRouter()
+	user.RegisterRoutes(v1, userHandler, authMW)
+	event.RegisterRoutes(v1, eventHandler, authMW)
+	report.RegisterRoutes(v1, reportHandler, authMW)
+	sync.RegisterRoutes(v1, syncHandler, authMW)
+
+	// Swagger (outside /api/v1)
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
 	// Start background sync
 	go syncSvc.Start(ctx)

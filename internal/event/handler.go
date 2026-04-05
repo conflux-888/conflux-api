@@ -20,6 +20,26 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// HandleListEvents godoc
+// @Summary      List events
+// @Description  Returns paginated, filterable list of conflict events (GDELT + user reports)
+// @Tags         events
+// @Produce      json
+// @Param        severity    query  string  false  "Comma-separated: critical,high,medium,low"
+// @Param        event_type  query  string  false  "Filter by event type"
+// @Param        country     query  string  false  "Filter by country code"
+// @Param        source      query  string  false  "gdelt or user_report"
+// @Param        date_from   query  string  false  "Start date (YYYY-MM-DD)"
+// @Param        date_to     query  string  false  "End date (YYYY-MM-DD)"
+// @Param        bbox        query  string  false  "Bounding box: min_lng,min_lat,max_lng,max_lat"
+// @Param        page        query  int     false  "Page number"     default(1)
+// @Param        limit       query  int     false  "Items per page"  default(50)
+// @Param        sort        query  string  false  "date_desc, date_asc, severity"  default(date_desc)
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Security     BearerAuth
+// @Router       /events [get]
 func (h *Handler) HandleListEvents(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
@@ -87,6 +107,16 @@ func (h *Handler) HandleListEvents(c *gin.Context) {
 	})
 }
 
+// HandleGetEvent godoc
+// @Summary      Get event by ID
+// @Tags         events
+// @Produce      json
+// @Param        id   path  string  true  "Event ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Failure      404  {object}  map[string]interface{}
+// @Security     BearerAuth
+// @Router       /events/{id} [get]
 func (h *Handler) HandleGetEvent(c *gin.Context) {
 	id := c.Param("id")
 
@@ -104,6 +134,21 @@ func (h *Handler) HandleGetEvent(c *gin.Context) {
 	response.Success(c, http.StatusOK, e)
 }
 
+// HandleGetNearby godoc
+// @Summary      Find nearby events
+// @Description  Returns events within a radius of a geographic point
+// @Tags         events
+// @Produce      json
+// @Param        lat        query  number  true   "Latitude"
+// @Param        lng        query  number  true   "Longitude"
+// @Param        radius_km  query  number  false  "Radius in km (max 500)"  default(50)
+// @Param        severity   query  string  false  "Filter by severity"
+// @Param        limit      query  int     false  "Max results (max 100)"   default(20)
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Security     BearerAuth
+// @Router       /events/nearby [get]
 func (h *Handler) HandleGetNearby(c *gin.Context) {
 	latStr := c.Query("lat")
 	lngStr := c.Query("lng")

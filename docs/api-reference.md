@@ -1,6 +1,6 @@
 # API Reference
 
-Base URL: `http://localhost:8080`
+Base URL: `http://localhost:8080/api/v1`
 
 ## Response Format
 
@@ -40,20 +40,24 @@ All responses follow a consistent format.
 
 ## Health Check
 
-### GET /health
+### GET /health (outside /api/v1)
 
-No auth required.
+No auth required. URL: `http://localhost:8080/health`
 
 **Response:**
 ```json
 { "status": "ok" }
 ```
 
+### Swagger UI (outside /api/v1)
+
+URL: `http://localhost:8080/swagger/index.html`
+
 ---
 
 ## Authentication
 
-### POST /auth/register
+### POST /api/v1/auth/register
 
 Create a new user account.
 
@@ -89,7 +93,7 @@ Create a new user account.
 
 ---
 
-### POST /auth/login
+### POST /api/v1/auth/login
 
 Authenticate and receive a JWT access token.
 
@@ -121,7 +125,7 @@ Token is valid for **1 hour**. No refresh token — login again when expired.
 
 All endpoints require `Authorization: Bearer <token>` header.
 
-### GET /users/me
+### GET /api/v1/users/me
 
 **Response (200):**
 ```json
@@ -136,7 +140,7 @@ All endpoints require `Authorization: Bearer <token>` header.
 }
 ```
 
-### PUT /users/me
+### PUT /api/v1/users/me
 
 **Request body:**
 ```json
@@ -145,7 +149,7 @@ All endpoints require `Authorization: Bearer <token>` header.
 }
 ```
 
-**Response (200):** Same format as GET /users/me with updated fields.
+**Response (200):** Same format as GET /api/v1/users/me with updated fields.
 
 ---
 
@@ -153,7 +157,7 @@ All endpoints require `Authorization: Bearer <token>` header.
 
 All endpoints require `Authorization: Bearer <token>` header.
 
-### GET /events
+### GET /api/v1/events
 
 List events with filtering, sorting, and pagination. Returns both GDELT and user report events.
 
@@ -174,9 +178,9 @@ List events with filtering, sorting, and pagination. Returns both GDELT and user
 
 **Example requests:**
 ```
-GET /events?severity=critical,high&limit=100
-GET /events?bbox=100.3,13.5,100.8,14.0&source=gdelt
-GET /events?country=IR&date_from=2025-01-01&sort=date_desc
+GET /api/v1/events?severity=critical,high&limit=100
+GET /api/v1/events?bbox=100.3,13.5,100.8,14.0&source=gdelt
+GET /api/v1/events?country=IR&date_from=2025-01-01&sort=date_desc
 ```
 
 **Response (200):**
@@ -218,7 +222,7 @@ GET /events?country=IR&date_from=2025-01-01&sort=date_desc
 
 ---
 
-### GET /events/:id
+### GET /api/v1/events/:id
 
 Get a single event by ID.
 
@@ -228,7 +232,7 @@ Get a single event by ID.
 
 ---
 
-### GET /events/nearby
+### GET /api/v1/events/nearby
 
 Find events near a geographic point.
 
@@ -244,7 +248,7 @@ Find events near a geographic point.
 
 **Example:**
 ```
-GET /events/nearby?lat=36.3&lng=59.6&radius_km=10&severity=critical
+GET /api/v1/events/nearby?lat=36.3&lng=59.6&radius_km=10&severity=critical
 ```
 
 **Response (200):** Array of events in `data` field (no pagination, limited by `limit` param).
@@ -257,7 +261,7 @@ GET /events/nearby?lat=36.3&lng=59.6&radius_km=10&severity=critical
 
 All endpoints require `Authorization: Bearer <token>` header.
 
-### POST /reports
+### POST /api/v1/reports
 
 Submit a user report. Creates an event with `source: "user_report"` and auto-clusters with nearby reports.
 
@@ -293,7 +297,7 @@ After creating the event, the system checks for an existing report cluster withi
 
 ---
 
-### GET /reports/me
+### GET /api/v1/reports/me
 
 List the authenticated user's own reports.
 
@@ -308,7 +312,7 @@ List the authenticated user's own reports.
 
 ---
 
-### DELETE /reports/:id
+### DELETE /api/v1/reports/:id
 
 Soft-delete a report. Only the report owner can delete it.
 
@@ -325,7 +329,7 @@ Soft-delete a report. Only the report owner can delete it.
 
 All endpoints require `Authorization: Bearer <token>` header.
 
-### GET /admin/sync/status
+### GET /api/v1/admin/sync/status
 
 Get the current GDELT sync state.
 
@@ -343,8 +347,8 @@ Get the current GDELT sync state.
 }
 ```
 
-### POST /admin/sync/trigger
+### POST /api/v1/admin/sync/trigger
 
 Manually trigger a GDELT sync cycle. Runs synchronously — returns after sync completes.
 
-**Response (200):** Same format as GET /admin/sync/status with updated values.
+**Response (200):** Same format as GET /api/v1/admin/sync/status with updated values.

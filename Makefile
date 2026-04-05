@@ -6,3 +6,6 @@ build:
 
 run:
 	go run .
+
+swagger:
+	swag init --parseInternal --parseDependency -o ./swagger --packageName swagger

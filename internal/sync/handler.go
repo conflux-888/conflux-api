@@ -16,6 +16,14 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// HandleGetStatus godoc
+// @Summary      Get GDELT sync status
+// @Tags         admin
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Security     BearerAuth
+// @Router       /admin/sync/status [get]
 func (h *Handler) HandleGetStatus(c *gin.Context) {
 	state, err := h.svc.GetStatus(c.Request.Context())
 	if err != nil {
@@ -27,6 +35,15 @@ func (h *Handler) HandleGetStatus(c *gin.Context) {
 	response.Success(c, http.StatusOK, state)
 }
 
+// HandleTriggerSync godoc
+// @Summary      Trigger GDELT sync manually
+// @Description  Runs a full GDELT sync cycle synchronously and returns the result
+// @Tags         admin
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Security     BearerAuth
+// @Router       /admin/sync/trigger [post]
 func (h *Handler) HandleTriggerSync(c *gin.Context) {
 	h.svc.TriggerSync(c.Request.Context())
 

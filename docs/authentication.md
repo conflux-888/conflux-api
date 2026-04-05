@@ -7,13 +7,13 @@ Custom JWT-based authentication. Simple access token with 1-hour expiry, no refr
 ## Flow
 
 ```
-1. Register:  POST /auth/register { email, password, display_name }
+1. Register:  POST /api/v1/auth/register { email, password, display_name }
               → 201 { profile }
 
-2. Login:     POST /auth/login { email, password }
+2. Login:     POST /api/v1/auth/login { email, password }
               → 200 { access_token, expires_in: 3600 }
 
-3. Use token: GET /events
+3. Use token: GET /api/v1/events
               Header: Authorization: Bearer <access_token>
 
 4. Token expired (after 1 hour):
@@ -84,8 +84,8 @@ Implementation: `internal/common/middleware/auth.go`
 
 | Route | Auth Required |
 |-------|--------------|
-| `POST /auth/register` | No |
-| `POST /auth/login` | No |
+| `POST /api/v1/auth/register` | No |
+| `POST /api/v1/auth/login` | No |
 | `GET /health` | No |
 | Everything else | **Yes** |
 

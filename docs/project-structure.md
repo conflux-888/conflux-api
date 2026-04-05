@@ -49,21 +49,21 @@ conflux-api/
     │   ├── repository.go                # CRUD on users collection
     │   ├── service.go                   # Register, Login, GetProfile, UpdateProfile
     │   ├── handler.go                   # HTTP handlers
-    │   └── routes.go                    # /auth/*, /users/*
+    │   └── routes.go                    # /api/v1/auth/*, /api/v1/users/*
     │
     ├── event/                           # EVENT DOMAIN (shared)
     │   ├── model.go                     # Event, GeoJSONPoint, EventFilter, constants
     │   ├── repository.go                # CRUD + Find + FindNearby + BulkUpsert
     │   ├── service.go                   # ListEvents, GetEvent, GetNearbyEvents
     │   ├── handler.go                   # HTTP handlers
-    │   └── routes.go                    # /events/*
+    │   └── routes.go                    # /api/v1/events/*
     │
     ├── report/                          # REPORT DOMAIN
     │   ├── model.go                     # CreateReportRequest, ReportCluster
     │   ├── repository.go                # Cluster CRUD with $geoNear
     │   ├── service.go                   # SubmitReport + clustering, GetMyReports, Delete
     │   ├── handler.go                   # HTTP handlers
-    │   └── routes.go                    # /reports/*
+    │   └── routes.go                    # /api/v1/reports/*
     │
     └── sync/                            # SYNC DOMAIN
         ├── model.go                     # SyncState, GDELTEvent
@@ -72,7 +72,7 @@ conflux-api/
         ├── client.go                    # GDELT HTTP client, CSV download + parse
         ├── service.go                   # Sync orchestrator + ticker loop
         ├── handler.go                   # Admin HTTP handlers
-        └── routes.go                    # /admin/sync/*
+        └── routes.go                    # /api/v1/admin/sync/*
 ```
 
 ## Domain Pattern

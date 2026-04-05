@@ -18,6 +18,16 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// HandleRegister godoc
+// @Summary      Register a new user
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body      RegisterRequest  true  "Registration data"
+// @Success      201      {object}  map[string]interface{}
+// @Failure      400      {object}  map[string]interface{}
+// @Failure      409      {object}  map[string]interface{}
+// @Router       /auth/register [post]
 func (h *Handler) HandleRegister(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -39,6 +49,16 @@ func (h *Handler) HandleRegister(c *gin.Context) {
 	response.Success(c, http.StatusCreated, profile)
 }
 
+// HandleLogin godoc
+// @Summary      Login and get access token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body      LoginRequest  true  "Login credentials"
+// @Success      200      {object}  map[string]interface{}
+// @Failure      400      {object}  map[string]interface{}
+// @Failure      401      {object}  map[string]interface{}
+// @Router       /auth/login [post]
 func (h *Handler) HandleLogin(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -60,6 +80,15 @@ func (h *Handler) HandleLogin(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
+// HandleGetMe godoc
+// @Summary      Get my profile
+// @Tags         users
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Failure      404  {object}  map[string]interface{}
+// @Security     BearerAuth
+// @Router       /users/me [get]
 func (h *Handler) HandleGetMe(c *gin.Context) {
 	userID := middleware.UserIDFromContext(c)
 
@@ -77,6 +106,17 @@ func (h *Handler) HandleGetMe(c *gin.Context) {
 	response.Success(c, http.StatusOK, profile)
 }
 
+// HandleUpdateMe godoc
+// @Summary      Update my profile
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        request  body      UpdateProfileRequest  true  "Profile data"
+// @Success      200      {object}  map[string]interface{}
+// @Failure      400      {object}  map[string]interface{}
+// @Failure      401      {object}  map[string]interface{}
+// @Security     BearerAuth
+// @Router       /users/me [put]
 func (h *Handler) HandleUpdateMe(c *gin.Context) {
 	userID := middleware.UserIDFromContext(c)
 

@@ -34,7 +34,7 @@ Validated via Gin binding tag: `binding:"required,oneof=armed_conflict use_of_fo
 ## Submission Flow
 
 ```
-1. User sends POST /reports with event details + coordinates
+1. User sends POST /api/v1/reports with event details + coordinates
 2. Handler validates request (event_type, severity, title, lat/lng, country)
 3. Service creates Event in events collection:
    - source = "user_report"
