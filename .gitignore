@@ -9,3 +9,5 @@ tmp/
 *.out
 vendor/
 requirement.md
+
+conflux-ios/*
