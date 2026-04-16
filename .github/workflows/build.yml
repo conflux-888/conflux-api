@@ -49,3 +49,21 @@ jobs:
             --cache=true
         env:
           DOCKER_CONFIG: /github/workspace
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VM
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          password: ${{ secrets.VM_PASSWORD }}
+          script: |
+            cd conflux/dev
+            sed -i 's|image: ghcr.io/wiraphatys/drprice:.*|image: ghcr.io/wiraphatys/drprice:${{ needs.build.outputs.image_tag }}|' docker-compose.yml
+            make rs
+
