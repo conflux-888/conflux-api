@@ -7,6 +7,7 @@ import (
 	"github.com/conflux-888/conflux-api/internal/common/gemini"
 	"github.com/conflux-888/conflux-api/internal/common/response"
 	"github.com/conflux-888/conflux-api/internal/event"
+	"github.com/conflux-888/conflux-api/internal/notification"
 	"github.com/rs/zerolog/log"
 )
 
@@ -14,10 +15,15 @@ type Service struct {
 	repo      *Repository
 	eventRepo *event.Repository
 	gemini    *gemini.Client
+	notifier  *notification.Service
 }
 
 func NewService(repo *Repository, eventRepo *event.Repository, geminiClient *gemini.Client) *Service {
 	return &Service{repo: repo, eventRepo: eventRepo, gemini: geminiClient}
+}
+
+func (s *Service) SetNotifier(n *notification.Service) {
+	s.notifier = n
 }
 
 func (s *Service) GenerateSummaryForDate(ctx context.Context, date string) error {
@@ -130,6 +136,11 @@ func (s *Service) GenerateSummaryForDate(ctx context.Context, date string) error
 		Int("generation", genNum).
 		Dur("duration", time.Since(startTime)).
 		Msg("[summary.GenerateSummaryForDate] summary generated")
+
+	// Trigger notifications for daily briefing (async, only on first generation)
+	if s.notifier != nil && genNum == 1 {
+		go s.notifier.NotifyDailyBriefing(context.Background(), date, summary.Title)
+	}
 
 	return nil
 }
