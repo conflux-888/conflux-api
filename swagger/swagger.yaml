@@ -40,6 +40,13 @@ definitions:
     - severity
     - title
     type: object
+  summary.TriggerRequest:
+    properties:
+      date:
+        type: string
+    required:
+    - date
+    type: object
   user.LoginRequest:
     properties:
       email:
@@ -79,6 +86,41 @@ info:
   title: Conflux API
   version: "1.0"
 paths:
+  /admin/summaries/trigger:
+    post:
+      consumes:
+      - application/json
+      description: Manually generate a summary for a specific date
+      parameters:
+      - description: Date to generate
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/summary.TriggerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Trigger summary generation
+      tags:
+      - admin
   /admin/sync/status:
     get:
       produces:
@@ -436,6 +478,104 @@ paths:
       summary: List my reports
       tags:
       - reports
+  /summaries:
+    get:
+      description: Returns paginated list of daily conflict summaries
+      parameters:
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: to
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 7
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List daily summaries
+      tags:
+      - summaries
+  /summaries/{date}:
+    get:
+      description: Returns the daily summary for a specific date
+      parameters:
+      - description: Date (YYYY-MM-DD)
+        in: path
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get summary by date
+      tags:
+      - summaries
+  /summaries/latest:
+    get:
+      description: Returns the most recent completed daily summary
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get latest summary
+      tags:
+      - summaries
   /users/me:
     get:
       produces:

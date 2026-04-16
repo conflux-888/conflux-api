@@ -1,3 +1,5 @@
+.PHONY: dev build run swg
+
 dev:
 	air
 
@@ -7,5 +9,5 @@ build:
 run:
 	go run .
 
-swagger:
+swg:
 	swag init --parseInternal --parseDependency -o ./swagger --packageName swagger
