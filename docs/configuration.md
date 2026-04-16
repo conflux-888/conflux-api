@@ -11,6 +11,9 @@ Configuration is loaded from `.env` file (via godotenv) and environment variable
 | `MONGODB_DATABASE` | No | `conflux` | MongoDB database name |
 | `JWT_SECRET` | **Yes** | `change-me-in-production` | Secret key for signing JWT tokens. **Must change in production.** |
 | `SYNC_INTERVAL_MINUTES` | No | `15` | How often to sync from GDELT (minutes) |
+| `GEMINI_API_KEY` | No | (empty) | Google AI API key for LLM summaries. Feature disabled if empty. |
+| `SUMMARY_CHECK_INTERVAL_MIN` | No | `30` | How often summary scheduler checks (minutes) |
+| `SUMMARY_BACKFILL_DAYS` | No | `7` | How many past days to backfill on startup |
 | `LOG_LEVEL` | No | `info` | Log level: `debug`, `info`, `warn`, `error`, `fatal` |
 
 ## .env File

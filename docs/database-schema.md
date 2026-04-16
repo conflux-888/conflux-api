@@ -115,6 +115,35 @@ Tracks the state of the GDELT background sync process. Contains a single documen
 
 ---
 
+### daily_summaries
+
+LLM-generated daily conflict briefings.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `_id` | ObjectID | Auto-generated |
+| `summary_date` | string | `"YYYY-MM-DD"` (UTC day) |
+| `status` | string | `"completed"`, `"failed"`, `"no_events"` |
+| `event_count` | int | Number of events summarized |
+| `title` | string | LLM-generated news headline |
+| `content` | string | LLM-generated article (continuous prose) |
+| `severity_breakdown` | object | `{ critical, high, medium, low }` — computed from data |
+| `model` | string | LLM model used |
+| `prompt_tokens` | int | Input token count |
+| `completion_tokens` | int | Output token count |
+| `generation_number` | int | Re-generation counter |
+| `generated_at` | datetime | When LLM was called |
+| `created_at` | datetime | First creation |
+| `updated_at` | datetime | Last update |
+| `error_message` | string | Error details if failed |
+
+**Indexes:**
+| Fields | Type | Properties |
+|--------|------|------------|
+| `summary_date` | single | unique |
+
+---
+
 ## GeoJSON Format
 
 All geographic data uses MongoDB's GeoJSON Point format:
