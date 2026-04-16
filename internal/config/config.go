@@ -12,8 +12,11 @@ type Config struct {
 	MongoURI            string
 	MongoDatabase       string
 	JWTSecret           string
-	SyncIntervalMinutes int
-	LogLevel            string
+	SyncIntervalMinutes     int
+	GeminiAPIKey            string
+	SummaryCheckIntervalMin int
+	SummaryBackfillDays     int
+	LogLevel                string
 }
 
 func Load() *Config {
@@ -24,8 +27,11 @@ func Load() *Config {
 		MongoURI:            getEnv("MONGODB_URI", "mongodb://localhost:27017"),
 		MongoDatabase:       getEnv("MONGODB_DATABASE", "conflux"),
 		JWTSecret:           getEnv("JWT_SECRET", "change-me-in-production"),
-		SyncIntervalMinutes: getEnvInt("SYNC_INTERVAL_MINUTES", 15),
-		LogLevel:            getEnv("LOG_LEVEL", "info"),
+		SyncIntervalMinutes:     getEnvInt("SYNC_INTERVAL_MINUTES", 15),
+		GeminiAPIKey:            os.Getenv("GEMINI_API_KEY"),
+		SummaryCheckIntervalMin: getEnvInt("SUMMARY_CHECK_INTERVAL_MIN", 30),
+		SummaryBackfillDays:     getEnvInt("SUMMARY_BACKFILL_DAYS", 7),
+		LogLevel:                getEnv("LOG_LEVEL", "info"),
 	}
 }
 

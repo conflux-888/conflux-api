@@ -352,3 +352,83 @@ Get the current GDELT sync state.
 Manually trigger a GDELT sync cycle. Runs synchronously — returns after sync completes.
 
 **Response (200):** Same format as GET /api/v1/admin/sync/status with updated values.
+
+---
+
+## Daily Summaries
+
+All endpoints require `Authorization: Bearer <token>` header.
+
+### GET /api/v1/summaries
+
+List daily summaries with optional date range.
+
+**Query parameters:**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| from | string | 7 days ago | Start date (YYYY-MM-DD) |
+| to | string | today | End date (YYYY-MM-DD) |
+| page | int | 1 | Page number |
+| limit | int | 7 | Items per page (max 30) |
+
+**Response (200):** Paginated list of summary objects.
+
+---
+
+### GET /api/v1/summaries/latest
+
+Get the most recent completed daily summary.
+
+**Response (200):**
+```json
+{
+  "data": {
+    "id": "...",
+    "summary_date": "2025-04-05",
+    "status": "completed",
+    "event_count": 142,
+    "title": "Global Conflict Daily Briefing — April 5, 2025",
+    "content": "Heavy fighting continued across eastern Ukraine...",
+    "severity_breakdown": { "critical": 5, "high": 30, "medium": 65, "low": 42 },
+    "model": "gemini-2.5-flash",
+    "prompt_tokens": 50000,
+    "completion_tokens": 1500,
+    "generation_number": 2,
+    "generated_at": "2025-04-05T18:00:00Z"
+  }
+}
+```
+
+**Errors:** 404 (no summaries available)
+
+---
+
+### GET /api/v1/summaries/:date
+
+Get summary for a specific date.
+
+**Path parameters:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| date | string | Date in YYYY-MM-DD format |
+
+**Response (200):** Single summary object in `data` field.
+
+**Errors:** 400 (invalid date format), 404 (not found)
+
+---
+
+### POST /api/v1/admin/summaries/trigger
+
+Manually generate a summary for a specific date. Runs synchronously.
+
+**Request body:**
+```json
+{
+  "date": "2025-04-05"
+}
+```
+
+**Response (200):** Generated summary object in `data` field.

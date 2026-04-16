@@ -41,8 +41,10 @@ conflux-api/
     │   │   └── auth.go                  # JWT auth middleware
     │   ├── jwt/
     │   │   └── jwt.go                   # GenerateToken(), ParseToken()
-    │   └── logger/
-    │       └── logger.go                # zerolog Init()
+    │   ├── logger/
+    │   │   └── logger.go                # zerolog Init()
+    │   └── gemini/
+    │       └── client.go                # Generic Gemini API client (reusable)
     │
     ├── user/                            # USER DOMAIN
     │   ├── model.go                     # User, RegisterRequest, LoginRequest, etc.
@@ -73,6 +75,15 @@ conflux-api/
         ├── service.go                   # Sync orchestrator + ticker loop
         ├── handler.go                   # Admin HTTP handlers
         └── routes.go                    # /api/v1/admin/sync/*
+    │
+    └── summary/                         # SUMMARY DOMAIN
+        ├── model.go                     # DailySummary, SeverityBreakdown, region mapping
+        ├── repository.go                # daily_summaries collection CRUD
+        ├── prompt.go                    # Prompt building + event pre-processing
+        ├── service.go                   # Orchestrate: events → Gemini → store
+        ├── scheduler.go                 # Background job (every 30 min)
+        ├── handler.go                   # HTTP handlers
+        └── routes.go                    # /api/v1/summaries/*, /api/v1/admin/summaries/*
 ```
 
 ## Domain Pattern
