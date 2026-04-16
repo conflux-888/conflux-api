@@ -59,8 +59,7 @@ func main() {
 	eventHandler := event.NewHandler(eventSvc)
 
 	// Report domain
-	reportClusterRepo := report.NewRepository(db)
-	reportSvc := report.NewService(eventRepo, reportClusterRepo)
+	reportSvc := report.NewService(eventRepo)
 	reportHandler := report.NewHandler(reportSvc)
 
 	// Sync domain

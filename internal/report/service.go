@@ -2,7 +2,6 @@ package report
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/conflux-888/conflux-api/internal/common/response"
@@ -11,20 +10,12 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-const (
-	clusterRadiusMeters = 5000           // 5 km
-	clusterTimeWindow   = 24 * time.Hour // 24 hours
-)
-
-var ErrNotOwner = errors.New("not the owner of this report")
-
 type Service struct {
-	eventRepo   *event.Repository
-	clusterRepo *Repository
+	eventRepo *event.Repository
 }
 
-func NewService(eventRepo *event.Repository, clusterRepo *Repository) *Service {
-	return &Service{eventRepo: eventRepo, clusterRepo: clusterRepo}
+func NewService(eventRepo *event.Repository) *Service {
+	return &Service{eventRepo: eventRepo}
 }
 
 func (s *Service) SubmitReport(ctx context.Context, userID string, req CreateReportRequest) (*event.Event, error) {
@@ -57,46 +48,7 @@ func (s *Service) SubmitReport(ctx context.Context, userID string, req CreateRep
 	}
 
 	log.Info().Str("event_id", e.ID.Hex()).Str("user_id", userID).Msg("[report.SubmitReport] report created")
-
-	// Clustering
-	s.handleClustering(ctx, e)
-
 	return e, nil
-}
-
-func (s *Service) handleClustering(ctx context.Context, e *event.Event) {
-	since := time.Now().Add(-clusterTimeWindow)
-	lng := e.Location.Coordinates[0]
-	lat := e.Location.Coordinates[1]
-
-	cluster, err := s.clusterRepo.FindNearbyCluster(ctx, e.EventType, lng, lat, clusterRadiusMeters, since)
-	if errors.Is(err, ErrClusterNotFound) {
-		// Create new cluster
-		newCluster := &ReportCluster{
-			EventType:       e.EventType,
-			Severity:        e.Severity,
-			Center:          e.Location,
-			ReportIDs:       []bson.ObjectID{e.ID},
-			ReportCount:     1,
-			FirstReportedAt: time.Now(),
-			LastReportedAt:  time.Now(),
-		}
-		if err := s.clusterRepo.CreateCluster(ctx, newCluster); err != nil {
-			log.Error().Err(err).Msg("[report.handleClustering] failed to create cluster")
-		}
-		return
-	}
-	if err != nil {
-		log.Error().Err(err).Msg("[report.handleClustering] failed to find nearby cluster")
-		return
-	}
-
-	// Add to existing cluster
-	if err := s.clusterRepo.AddToCluster(ctx, cluster.ID, e.ID, e.Severity, lng, lat); err != nil {
-		log.Error().Err(err).Msg("[report.handleClustering] failed to add to cluster")
-	} else {
-		log.Info().Str("cluster_id", cluster.ID.Hex()).Int("report_count", cluster.ReportCount+1).Msg("[report.handleClustering] added to cluster")
-	}
 }
 
 func (s *Service) GetMyReports(ctx context.Context, userID string, page, limit int) ([]event.Event, *response.Pagination, error) {
@@ -114,13 +66,7 @@ func (s *Service) GetMyReports(ctx context.Context, userID string, page, limit i
 
 	log.Info().Str("user_id", userID).Int("count", len(events)).Int64("total", total).Msg("[report.GetMyReports] reports listed")
 
-	pagination := &response.Pagination{
-		Page:  page,
-		Limit: limit,
-		Total: total,
-	}
-
-	return events, pagination, nil
+	return events, &response.Pagination{Page: page, Limit: limit, Total: total}, nil
 }
 
 func (s *Service) DeleteMyReport(ctx context.Context, userID, eventID string) error {
