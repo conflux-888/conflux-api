@@ -140,13 +140,14 @@ jobs:
             set -e
 
             DEPLOY_DIR="conflux/dev"
-            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.image_tag }}"
 
-            # Find host port mapped to container from docker-compose
-            HOST_PORT=$(docker ps --filter "ancestor=${IMAGE}" --format '{{.Ports}}' | grep -oP '0\.0\.0\.0:\K[0-9]+' | head -1)
+            # Find host port mapped to container by image name
+            HOST_PORT=$(docker ps --format '{{.Image}} {{.Ports}}' | grep "conflux-api" | grep -oP '0\.0\.0\.0:\K[0-9]+' | head -1)
 
             if [ -z "$HOST_PORT" ]; then
-              echo "ERROR: could not find running container for $IMAGE"
+              echo "ERROR: could not find running container for conflux-api"
+              docker ps
               exit 1
             fi
 
