@@ -47,11 +47,13 @@ jobs:
           echo "tag=dev-${{ env.VERSION }}.${{ github.run_number }}" >> $GITHUB_OUTPUT
 
       - name: Setup Kaniko auth
+        if: github.ref_name == 'dev'
         run: |
           echo '{"auths":{"ghcr.io":{"auth":"'$(echo -n "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" | base64)'"}}}' \
             > $GITHUB_WORKSPACE/config.json
 
-      - name: Build and push with Kaniko
+      - name: Build and push image
+        if: github.ref_name == 'dev'
         uses: docker://gcr.io/kaniko-project/executor:latest
         with:
           args: >-
@@ -62,6 +64,15 @@ jobs:
             --cache=true
         env:
           DOCKER_CONFIG: /github/workspace
+
+      - name: Build only
+        if: github.ref_name == 'master'
+        uses: docker://gcr.io/kaniko-project/executor:latest
+        with:
+          args: >-
+            --dockerfile=Dockerfile
+            --context=/github/workspace
+            --no-push
 
   deploy:
     needs: build
@@ -76,6 +87,81 @@ jobs:
           username: ${{ secrets.VM_USER }}
           password: ${{ secrets.VM_PASSWORD }}
           script: |
-            cd conflux/dev
-            sed -i 's|image: ghcr.io/conflux-888/conflux-api:.*|image: ghcr.io/conflux-888/conflux-api:${{ needs.build.outputs.image_tag }}|' docker-compose.yml
+            set -e
+
+            DEPLOY_DIR="conflux/dev"
+            COMPOSE_FILE="$DEPLOY_DIR/docker-compose.yaml"
+            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.image_tag }}"
+
+            # Guardrail: check directory exists
+            if [ ! -d "$DEPLOY_DIR" ]; then
+              echo "ERROR: deploy directory $DEPLOY_DIR not found"
+              exit 1
+            fi
+
+            # Guardrail: check compose file exists
+            if [ ! -f "$COMPOSE_FILE" ]; then
+              echo "ERROR: $COMPOSE_FILE not found"
+              exit 1
+            fi
+
+            # Guardrail: verify image tag is not empty
+            if [ -z "${{ needs.build.outputs.image_tag }}" ]; then
+              echo "ERROR: image tag is empty"
+              exit 1
+            fi
+
+            # Guardrail: verify image exists in registry
+            if ! docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
+              echo "ERROR: image $IMAGE not found in registry"
+              exit 1
+            fi
+
+            cd "$DEPLOY_DIR"
+            sed -i "s|image: ghcr.io/conflux-888/conflux-api:.*|image: $IMAGE|" docker-compose.yaml
+
+            # Guardrail: verify sed actually changed the file
+            if ! grep -q "$IMAGE" docker-compose.yaml; then
+              echo "ERROR: failed to update image in docker-compose.yaml"
+              exit 1
+            fi
+
             make rs
+
+      - name: Health check
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          password: ${{ secrets.VM_PASSWORD }}
+          script: |
+            set -e
+
+            DEPLOY_DIR="conflux/dev"
+            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
+            # Find host port mapped to container from docker-compose
+            HOST_PORT=$(docker ps --filter "ancestor=${IMAGE}" --format '{{.Ports}}' | grep -oP '0\.0\.0\.0:\K[0-9]+' | head -1)
+
+            if [ -z "$HOST_PORT" ]; then
+              echo "ERROR: could not find running container for $IMAGE"
+              exit 1
+            fi
+
+            echo "Found container on port $HOST_PORT"
+
+            MAX_RETRIES=10
+            RETRY_INTERVAL=5
+
+            for i in $(seq 1 $MAX_RETRIES); do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$HOST_PORT/health || true)
+              if [ "$STATUS" = "200" ]; then
+                echo "Health check passed (attempt $i)"
+                exit 0
+              fi
+              echo "Waiting for app to start... (attempt $i/$MAX_RETRIES)"
+              sleep $RETRY_INTERVAL
+            done
+
+            echo "ERROR: health check failed after $MAX_RETRIES attempts"
+            exit 1
