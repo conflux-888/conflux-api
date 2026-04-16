@@ -145,7 +145,7 @@ func mapGDELTEvent(g GDELTEvent) event.Event {
 		EventType:     desc,
 		SubEventType:  "CAMEO " + g.EventCode,
 		EventRootCode: g.EventRootCode,
-		Severity:      ClassifySeverity(g.GoldsteinScale),
+		Severity:      ClassifySeverity(g.EventRootCode, g.NumArticles),
 		Title:        title,
 		Description:  g.SourceURL,
 		Country:      g.ActionGeoCountryCode,

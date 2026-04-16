@@ -13,13 +13,23 @@ type SeverityBreakdown struct {
 	Low      int `bson:"low" json:"low"`
 }
 
+type TopEvent struct {
+	Title       string `bson:"title" json:"title"`
+	Severity    string `bson:"severity" json:"severity"`
+	Country     string `bson:"country" json:"country"`
+	Location    string `bson:"location" json:"location"`
+	Description string `bson:"description" json:"description"`
+}
+
 type DailySummary struct {
 	ID                bson.ObjectID     `bson:"_id,omitempty" json:"id"`
 	SummaryDate       string            `bson:"summary_date" json:"summary_date"`
 	Status            string            `bson:"status" json:"status"` // completed, failed, no_events
 	EventCount        int               `bson:"event_count" json:"event_count"`
+	IncidentCount     int               `bson:"incident_count" json:"incident_count"` // after dedup
 	Title             string            `bson:"title" json:"title"`
 	Content           string            `bson:"content" json:"content"`
+	TopEvents         []TopEvent        `bson:"top_events" json:"top_events"`
 	SeverityBreakdown SeverityBreakdown `bson:"severity_breakdown" json:"severity_breakdown"`
 	Model             string            `bson:"model" json:"model"`
 	PromptTokens      int               `bson:"prompt_tokens" json:"prompt_tokens"`
@@ -35,67 +45,133 @@ type TriggerRequest struct {
 	Date string `json:"date" binding:"required"`
 }
 
-// Country to region mapping for pre-processing events before LLM input
+// Country to region mapping using FIPS country codes (GDELT standard)
 var CountryToRegion = map[string]string{
-	// Eastern Europe
-	"UA": "Eastern Europe", "RU": "Eastern Europe", "BY": "Eastern Europe",
-	"MD": "Eastern Europe", "GG": "Eastern Europe", "PL": "Eastern Europe",
+	// Eastern Europe (FIPS)
+	"UP": "Eastern Europe", // Ukraine
+	"RS": "Eastern Europe", // Russia
+	"BO": "Eastern Europe", // Belarus
+	"MD": "Eastern Europe", // Moldova
+	"PL": "Eastern Europe", // Poland
+	"RO": "Eastern Europe", // Romania
+	"HU": "Eastern Europe", // Hungary
 
-	// Middle East
-	"IL": "Middle East", "PS": "Middle East", "IR": "Middle East",
-	"IQ": "Middle East", "SY": "Middle East", "YE": "Middle East",
-	"LB": "Middle East", "JO": "Middle East", "SA": "Middle East",
+	// Middle East (FIPS)
+	"IS": "Middle East", // Israel
+	"GZ": "Middle East", // Gaza Strip
+	"WE": "Middle East", // West Bank
+	"IR": "Middle East", // Iran
+	"IZ": "Middle East", // Iraq
+	"SY": "Middle East", // Syria
+	"YM": "Middle East", // Yemen
+	"LE": "Middle East", // Lebanon
+	"JO": "Middle East", // Jordan
+	"SA": "Middle East", // Saudi Arabia
+	"AE": "Middle East", // UAE
+	"QA": "Middle East", // Qatar
+	"TU": "Middle East", // Turkey
 
-	// South Asia
-	"AF": "South Asia", "PK": "South Asia", "IN": "South Asia",
-	"LK": "South Asia", "NP": "South Asia", "BD": "South Asia",
-	"BM": "South Asia",
+	// South Asia (FIPS)
+	"AF": "South Asia", // Afghanistan
+	"PK": "South Asia", // Pakistan
+	"IN": "South Asia", // India
+	"CE": "South Asia", // Sri Lanka
+	"NP": "South Asia", // Nepal
+	"BG": "South Asia", // Bangladesh
+	"BM": "South Asia", // Burma/Myanmar
 
-	// Southeast Asia
-	"MM": "Southeast Asia", "TH": "Southeast Asia", "PH": "Southeast Asia",
-	"ID": "Southeast Asia", "MY": "Southeast Asia",
+	// Southeast Asia (FIPS)
+	"TH": "Southeast Asia", // Thailand
+	"RP": "Southeast Asia", // Philippines
+	"ID": "Southeast Asia", // Indonesia
+	"MY": "Southeast Asia", // Malaysia
+	"VM": "Southeast Asia", // Vietnam
+	"CB": "Southeast Asia", // Cambodia
 
-	// East Asia
-	"CN": "East Asia", "KN": "East Asia", "KS": "East Asia",
-	"TW": "East Asia", "JA": "East Asia",
+	// East Asia (FIPS)
+	"CH": "East Asia", // China
+	"KN": "East Asia", // North Korea
+	"KS": "East Asia", // South Korea
+	"TW": "East Asia", // Taiwan
+	"JA": "East Asia", // Japan
 
-	// West Africa
-	"NG": "West Africa", "ML": "West Africa", "BF": "West Africa",
-	"NI": "West Africa", "GH": "West Africa", "SN": "West Africa",
-	"CM": "West Africa",
+	// West Africa (FIPS)
+	"NI": "West Africa", // Nigeria
+	"ML": "West Africa", // Mali
+	"UV": "West Africa", // Burkina Faso
+	"NG": "West Africa", // Niger
+	"GH": "West Africa", // Ghana
+	"SG": "West Africa", // Senegal
+	"CM": "West Africa", // Cameroon
 
-	// East Africa
-	"SO": "East Africa", "ET": "East Africa", "KE": "East Africa",
-	"SD": "East Africa", "SS": "East Africa", "UG": "East Africa",
-	"CD": "East Africa", "RW": "East Africa",
+	// East Africa (FIPS)
+	"SO": "East Africa", // Somalia
+	"ET": "East Africa", // Ethiopia
+	"KE": "East Africa", // Kenya
+	"SU": "East Africa", // Sudan
+	"OD": "East Africa", // South Sudan
+	"UG": "East Africa", // Uganda
+	"CG": "East Africa", // Congo (DRC)
+	"RW": "East Africa", // Rwanda
 
-	// North Africa
-	"LY": "North Africa", "EG": "North Africa", "TN": "North Africa",
-	"AG": "North Africa", "MO": "North Africa",
+	// North Africa (FIPS)
+	"LY": "North Africa", // Libya
+	"EG": "North Africa", // Egypt
+	"TS": "North Africa", // Tunisia
+	"AG": "North Africa", // Algeria
+	"MO": "North Africa", // Morocco
 
-	// Central Africa
-	"CF": "Central Africa", "CG": "Central Africa", "CB": "Central Africa",
+	// Central Africa (FIPS)
+	"CT": "Central Africa", // Central African Republic
+	"CF": "Central Africa", // Congo (Brazzaville)
 
-	// Southern Africa
-	"MZ": "Southern Africa", "SF": "Southern Africa", "ZI": "Southern Africa",
+	// Southern Africa (FIPS)
+	"MZ": "Southern Africa", // Mozambique
+	"SF": "Southern Africa", // South Africa
+	"ZI": "Southern Africa", // Zimbabwe
 
-	// Central America & Caribbean
-	"MX": "Central America", "HO": "Central America", "GT": "Central America",
-	"ES": "Central America", "NU": "Central America", "HA": "Central America",
-	"CU": "Central America",
+	// North America (FIPS)
+	"US": "North America", // United States
+	"CA": "North America", // Canada
+	"MX": "North America", // Mexico
 
-	// South America
-	"CO": "South America", "VE": "South America", "BR": "South America",
-	"PE": "South America", "EC": "South America",
+	// Central America & Caribbean (FIPS)
+	"HO": "Central America", // Honduras
+	"GT": "Central America", // Guatemala
+	"ES": "Central America", // El Salvador
+	"NU": "Central America", // Nicaragua
+	"HA": "Central America", // Haiti
+	"CU": "Central America", // Cuba
 
-	// Europe (Western)
-	"FR": "Western Europe", "GM": "Western Europe", "UK": "Western Europe",
-	"SP": "Western Europe", "IT": "Western Europe",
+	// South America (FIPS)
+	"CO": "South America", // Colombia
+	"VE": "South America", // Venezuela
+	"BR": "South America", // Brazil
+	"PE": "South America", // Peru
+	"EC": "South America", // Ecuador
 
-	// Caucasus & Central Asia
-	"AM": "Caucasus & Central Asia", "AJ": "Caucasus & Central Asia",
-	"KZ": "Caucasus & Central Asia",
-	"UZ": "Caucasus & Central Asia", "TI": "Caucasus & Central Asia",
+	// Western Europe (FIPS)
+	"FR": "Western Europe", // France
+	"GM": "Western Europe", // Germany
+	"UK": "Western Europe", // United Kingdom
+	"SP": "Western Europe", // Spain
+	"IT": "Western Europe", // Italy
+	"BE": "Western Europe", // Belgium
+	"NL": "Western Europe", // Netherlands
+	"DA": "Western Europe", // Denmark
+	"SW": "Western Europe", // Sweden
+	"NO": "Western Europe", // Norway
+
+	// Caucasus & Central Asia (FIPS)
+	"AM": "Caucasus & Central Asia", // Armenia
+	"AJ": "Caucasus & Central Asia", // Azerbaijan
+	"GG": "Caucasus & Central Asia", // Georgia
+	"KZ": "Caucasus & Central Asia", // Kazakhstan
+	"UZ": "Caucasus & Central Asia", // Uzbekistan
+	"TI": "Caucasus & Central Asia", // Tajikistan
+
+	// Oceania (FIPS)
+	"AS": "Oceania", // Australia
 }
 
 func RegionForCountry(countryCode string) string {

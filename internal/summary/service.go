@@ -21,14 +21,18 @@ func NewService(repo *Repository, eventRepo *event.Repository, geminiClient *gem
 }
 
 func (s *Service) GenerateSummaryForDate(ctx context.Context, date string) error {
+	startTime := time.Now()
 	log.Info().Str("date", date).Msg("[summary.GenerateSummaryForDate] starting generation")
 
 	// Parse date range (UTC day)
 	dateStart, err := time.Parse("2006-01-02", date)
 	if err != nil {
+		log.Error().Err(err).Str("date", date).Msg("[summary.GenerateSummaryForDate] invalid date format")
 		return err
 	}
 	dateEnd := dateStart.Add(24*time.Hour - time.Second)
+
+	log.Debug().Str("date", date).Time("from", dateStart).Time("to", dateEnd).Msg("[summary.GenerateSummaryForDate] querying events")
 
 	// Query events for this date
 	events, total, err := s.eventRepo.Find(ctx, event.EventFilter{
@@ -43,19 +47,29 @@ func (s *Service) GenerateSummaryForDate(ctx context.Context, date string) error
 		return err
 	}
 
+	log.Info().Str("date", date).Int64("event_count", total).Msg("[summary.GenerateSummaryForDate] events queried")
+
 	// Compute severity breakdown from data
 	breakdown := computeSeverityBreakdown(events)
+	log.Debug().
+		Str("date", date).
+		Int("critical", breakdown.Critical).
+		Int("high", breakdown.High).
+		Int("medium", breakdown.Medium).
+		Int("low", breakdown.Low).
+		Msg("[summary.GenerateSummaryForDate] severity breakdown")
 
 	// Get existing summary for generation_number tracking
 	existing, _ := s.repo.FindByDate(ctx, date)
 	genNum := 1
 	if existing != nil {
 		genNum = existing.GenerationNumber + 1
+		log.Debug().Str("date", date).Int("prev_generation", existing.GenerationNumber).Msg("[summary.GenerateSummaryForDate] previous summary found")
 	}
 
 	// No events
 	if total == 0 {
-		log.Info().Str("date", date).Msg("[summary.GenerateSummaryForDate] no events for date")
+		log.Info().Str("date", date).Msg("[summary.GenerateSummaryForDate] no events for date, storing no_events")
 		return s.repo.Upsert(ctx, &DailySummary{
 			SummaryDate:       date,
 			Status:            "no_events",
@@ -70,7 +84,8 @@ func (s *Service) GenerateSummaryForDate(ctx context.Context, date string) error
 	}
 
 	// Call Gemini
-	output, promptTokens, completionTokens, err := generateSummary(ctx, s.gemini, date, events)
+	log.Info().Str("date", date).Int64("event_count", total).Msg("[summary.GenerateSummaryForDate] calling Gemini")
+	result, err := generateSummary(ctx, s.gemini, date, events)
 	if err != nil {
 		log.Error().Err(err).Str("date", date).Msg("[summary.GenerateSummaryForDate] Gemini API failed")
 		return s.repo.Upsert(ctx, &DailySummary{
@@ -89,12 +104,14 @@ func (s *Service) GenerateSummaryForDate(ctx context.Context, date string) error
 		SummaryDate:       date,
 		Status:            "completed",
 		EventCount:        int(total),
-		Title:             output.Title,
-		Content:           output.Content,
+		IncidentCount:     result.IncidentCount,
+		Title:             result.Output.Title,
+		Content:           result.Output.Content,
+		TopEvents:         result.Output.TopEvents,
 		SeverityBreakdown: breakdown,
 		Model:             modelName,
-		PromptTokens:      promptTokens,
-		CompletionTokens:  completionTokens,
+		PromptTokens:      result.PromptTokens,
+		CompletionTokens:  result.CompletionTokens,
 		GenerationNumber:  genNum,
 		GeneratedAt:       time.Now(),
 	}
@@ -107,8 +124,11 @@ func (s *Service) GenerateSummaryForDate(ctx context.Context, date string) error
 	log.Info().
 		Str("date", date).
 		Int("event_count", int(total)).
-		Int("prompt_tokens", promptTokens).
+		Int("prompt_tokens", result.PromptTokens).
+		Int("completion_tokens", result.CompletionTokens).
+		Int("incidents", result.IncidentCount).
 		Int("generation", genNum).
+		Dur("duration", time.Since(startTime)).
 		Msg("[summary.GenerateSummaryForDate] summary generated")
 
 	return nil

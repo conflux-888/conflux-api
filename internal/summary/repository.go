@@ -29,15 +29,34 @@ func NewRepository(db *mongo.Database) *Repository {
 
 func (r *Repository) Upsert(ctx context.Context, s *DailySummary) error {
 	now := time.Now()
-	s.UpdatedAt = now
+
+	update := bson.M{
+		"$set": bson.M{
+			"status":              s.Status,
+			"event_count":         s.EventCount,
+			"incident_count":      s.IncidentCount,
+			"title":               s.Title,
+			"content":             s.Content,
+			"top_events":          s.TopEvents,
+			"severity_breakdown":  s.SeverityBreakdown,
+			"model":               s.Model,
+			"prompt_tokens":       s.PromptTokens,
+			"completion_tokens":   s.CompletionTokens,
+			"generation_number":   s.GenerationNumber,
+			"generated_at":        s.GeneratedAt,
+			"error_message":       s.ErrorMessage,
+			"updated_at":          now,
+		},
+		"$setOnInsert": bson.M{
+			"summary_date": s.SummaryDate,
+			"created_at":   now,
+		},
+	}
 
 	_, err := r.col.UpdateOne(
 		ctx,
 		bson.M{"summary_date": s.SummaryDate},
-		bson.M{
-			"$set":         s,
-			"$setOnInsert": bson.M{"created_at": now},
-		},
+		update,
 		options.UpdateOne().SetUpsert(true),
 	)
 	return err
