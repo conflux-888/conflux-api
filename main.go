@@ -8,6 +8,7 @@ import (
 	"time"
 
 	_ "github.com/conflux-888/conflux-api/swagger"
+	"github.com/conflux-888/conflux-api/internal/common/gemini"
 	"github.com/conflux-888/conflux-api/internal/common/logger"
 	"github.com/conflux-888/conflux-api/internal/common/middleware"
 	"github.com/conflux-888/conflux-api/internal/config"
@@ -15,6 +16,7 @@ import (
 	"github.com/conflux-888/conflux-api/internal/infrastructure/database"
 	"github.com/conflux-888/conflux-api/internal/infrastructure/server"
 	"github.com/conflux-888/conflux-api/internal/report"
+	"github.com/conflux-888/conflux-api/internal/summary"
 	"github.com/conflux-888/conflux-api/internal/sync"
 	"github.com/conflux-888/conflux-api/internal/user"
 	"github.com/rs/zerolog/log"
@@ -74,11 +76,31 @@ func main() {
 	report.RegisterRoutes(v1, reportHandler, authMW)
 	sync.RegisterRoutes(v1, syncHandler, authMW)
 
+	// Summary domain (optional — requires GEMINI_API_KEY)
+	var summaryScheduler *summary.Scheduler
+	if cfg.GeminiAPIKey != "" {
+		geminiClient, err := gemini.NewClient(ctx, cfg.GeminiAPIKey)
+		if err != nil {
+			log.Fatal().Err(err).Msg("[main] failed to create Gemini client")
+		}
+		defer geminiClient.Close()
+		summaryRepo := summary.NewRepository(db)
+		summarySvc := summary.NewService(summaryRepo, eventRepo, geminiClient)
+		summaryHandler := summary.NewHandler(summarySvc)
+		summaryScheduler = summary.NewScheduler(summarySvc, cfg.SummaryCheckIntervalMin, cfg.SummaryBackfillDays)
+		summary.RegisterRoutes(v1, summaryHandler, authMW)
+	} else {
+		log.Warn().Msg("[main] GEMINI_API_KEY not set, summary feature disabled")
+	}
+
 	// Swagger (outside /api/v1)
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
-	// Start background sync
+	// Start background jobs
 	go syncSvc.Start(ctx)
+	if summaryScheduler != nil {
+		go summaryScheduler.Start(ctx)
+	}
 
 	// Start server
 	srv := &http.Server{
