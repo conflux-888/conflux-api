@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/conflux-888/conflux-api/internal/event"
+	"github.com/conflux-888/conflux-api/internal/notification"
 	"github.com/rs/zerolog/log"
 )
 
@@ -23,6 +24,7 @@ type Service struct {
 	client    *Client
 	eventRepo *event.Repository
 	stateRepo *StateRepository
+	notifier  *notification.Service // optional
 	interval  time.Duration
 }
 
@@ -33,6 +35,10 @@ func NewService(client *Client, eventRepo *event.Repository, stateRepo *StateRep
 		stateRepo: stateRepo,
 		interval:  time.Duration(intervalMinutes) * time.Minute,
 	}
+}
+
+func (s *Service) SetNotifier(n *notification.Service) {
+	s.notifier = n
 }
 
 func (s *Service) Start(ctx context.Context) {
@@ -78,11 +84,17 @@ func (s *Service) runSync(ctx context.Context) {
 	}
 
 	// Bulk upsert
-	upserted, err := s.eventRepo.BulkUpsert(ctx, batch, event.SourceGDELT)
+	result, err := s.eventRepo.BulkUpsert(ctx, batch, event.SourceGDELT)
 	if err != nil {
 		log.Error().Err(err).Msg("[sync.runSync] bulk upsert failed")
 		s.updateState(ctx, "", 0, "failed", err.Error())
 		return
+	}
+	upserted := int64(len(result.InsertedEvents)) + result.ModifiedCount
+
+	// Trigger notifications for newly inserted critical events (async)
+	if s.notifier != nil && len(result.InsertedEvents) > 0 {
+		go s.notifier.NotifyNearbyCritical(context.Background(), result.InsertedEvents)
 	}
 
 	s.updateState(ctx, maxDateAdded, int(upserted), "success", "")

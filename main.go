@@ -15,6 +15,8 @@ import (
 	"github.com/conflux-888/conflux-api/internal/event"
 	"github.com/conflux-888/conflux-api/internal/infrastructure/database"
 	"github.com/conflux-888/conflux-api/internal/infrastructure/server"
+	"github.com/conflux-888/conflux-api/internal/notification"
+	"github.com/conflux-888/conflux-api/internal/preferences"
 	"github.com/conflux-888/conflux-api/internal/report"
 	"github.com/conflux-888/conflux-api/internal/summary"
 	"github.com/conflux-888/conflux-api/internal/sync"
@@ -68,12 +70,27 @@ func main() {
 	syncSvc := sync.NewService(syncClient, eventRepo, syncStateRepo, cfg.SyncIntervalMinutes)
 	syncHandler := sync.NewHandler(syncSvc)
 
+	// Preferences domain
+	prefsRepo := preferences.NewRepository(db)
+	prefsSvc := preferences.NewService(prefsRepo)
+	prefsHandler := preferences.NewHandler(prefsSvc)
+
+	// Notification domain
+	notifRepo := notification.NewRepository(db)
+	notifSvc := notification.NewService(notifRepo, prefsRepo)
+	notifHandler := notification.NewHandler(notifSvc)
+
+	// Hook notification service into sync
+	syncSvc.SetNotifier(notifSvc)
+
 	// Router
 	router, v1 := server.NewRouter()
 	user.RegisterRoutes(v1, userHandler, authMW)
 	event.RegisterRoutes(v1, eventHandler, authMW)
 	report.RegisterRoutes(v1, reportHandler, authMW)
 	sync.RegisterRoutes(v1, syncHandler, authMW)
+	preferences.RegisterRoutes(v1, prefsHandler, authMW)
+	notification.RegisterRoutes(v1, notifHandler, authMW)
 
 	// Summary domain (optional — requires GEMINI_API_KEY)
 	var summaryScheduler *summary.Scheduler
@@ -85,6 +102,7 @@ func main() {
 		defer geminiClient.Close()
 		summaryRepo := summary.NewRepository(db)
 		summarySvc := summary.NewService(summaryRepo, eventRepo, geminiClient)
+		summarySvc.SetNotifier(notifSvc)
 		summaryHandler := summary.NewHandler(summarySvc)
 		summaryScheduler = summary.NewScheduler(summarySvc, cfg.SummaryCheckIntervalMin, cfg.SummaryBackfillDays)
 		summary.RegisterRoutes(v1, summaryHandler, authMW)

@@ -79,9 +79,14 @@ func (r *Repository) UpsertByExternalID(ctx context.Context, externalID, source 
 	return err
 }
 
-func (r *Repository) BulkUpsert(ctx context.Context, events []Event, source string) (int64, error) {
+type BulkUpsertResult struct {
+	InsertedEvents []Event // events that were newly inserted (with _id set)
+	ModifiedCount  int64
+}
+
+func (r *Repository) BulkUpsert(ctx context.Context, events []Event, source string) (*BulkUpsertResult, error) {
 	if len(events) == 0 {
-		return 0, nil
+		return &BulkUpsertResult{}, nil
 	}
 
 	now := time.Now()
@@ -118,9 +123,23 @@ func (r *Repository) BulkUpsert(ctx context.Context, events []Event, source stri
 
 	result, err := r.col.BulkWrite(ctx, models)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return result.UpsertedCount + result.ModifiedCount, nil
+
+	// Map upserted indices back to events + set their IDs
+	inserted := make([]Event, 0, len(result.UpsertedIDs))
+	for idx, id := range result.UpsertedIDs {
+		e := events[idx]
+		if oid, ok := id.(bson.ObjectID); ok {
+			e.ID = oid
+		}
+		inserted = append(inserted, e)
+	}
+
+	return &BulkUpsertResult{
+		InsertedEvents: inserted,
+		ModifiedCount:  result.ModifiedCount,
+	}, nil
 }
 
 func (r *Repository) SoftDeleteByExternalIDs(ctx context.Context, externalIDs []string, source string) (int64, error) {

@@ -1,5 +1,31 @@
 basePath: /api/v1
 definitions:
+  preferences.UpdateLocationRequest:
+    properties:
+      latitude:
+        type: number
+      longitude:
+        type: number
+    required:
+    - latitude
+    - longitude
+    type: object
+  preferences.UpdateRequest:
+    properties:
+      min_severity:
+        enum:
+        - critical
+        - high
+        - medium
+        - low
+        type: string
+      notifications_enabled:
+        type: boolean
+      radius_km:
+        maximum: 500
+        minimum: 1
+        type: number
+    type: object
   report.CreateReportRequest:
     properties:
       country:
@@ -379,6 +405,160 @@ paths:
       summary: Find nearby events
       tags:
       - events
+  /notifications/{id}/read:
+    post:
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark notification as read
+      tags:
+      - notifications
+  /notifications/me:
+    get:
+      parameters:
+      - default: false
+        description: Filter unread only
+        in: query
+        name: unread_only
+        type: boolean
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List my notifications
+      tags:
+      - notifications
+  /notifications/me/unread-count:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get unread notification count
+      tags:
+      - notifications
+  /notifications/read-all:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark all notifications as read
+      tags:
+      - notifications
+  /preferences:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get my preferences
+      tags:
+      - preferences
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Preferences
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/preferences.UpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update my preferences
+      tags:
+      - preferences
+  /preferences/location:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Location
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/preferences.UpdateLocationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update my current location
+      tags:
+      - preferences
   /reports:
     post:
       consumes:
