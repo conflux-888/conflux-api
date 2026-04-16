@@ -1,11 +1,17 @@
 package server
 
 import (
+	"github.com/conflux-888/conflux-api/internal/common/middleware"
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter() (*gin.Engine, *gin.RouterGroup) {
+type RouterOptions struct {
+	CORSAllowLocalhost bool
+}
+
+func NewRouter(opts RouterOptions) (*gin.Engine, *gin.RouterGroup) {
 	r := gin.Default()
+	r.Use(middleware.CORS(opts.CORSAllowLocalhost))
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})

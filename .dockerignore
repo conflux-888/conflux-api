@@ -1,0 +1,7 @@
+.git
+.env
+tmp
+vendor
+conflux-ios
+admin/node_modules
+admin/dist

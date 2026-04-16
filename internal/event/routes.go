@@ -10,4 +10,13 @@ func RegisterRoutes(r *gin.RouterGroup, h *Handler, authMiddleware gin.HandlerFu
 		events.GET("/nearby", h.HandleGetNearby)
 		events.GET("/:id", h.HandleGetEvent)
 	}
+
+	admin := r.Group("/admin/events")
+	admin.Use(authMiddleware)
+	{
+		admin.POST("/seed", h.HandleSeedEvent)
+		admin.GET("/seeded", h.HandleListSeededEvents)
+		admin.DELETE("/seeded", h.HandleDeleteAllSeededEvents)
+		admin.DELETE("/:id", h.HandleDeleteSeededEvent)
+	}
 }

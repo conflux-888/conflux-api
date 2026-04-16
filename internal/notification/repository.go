@@ -125,6 +125,45 @@ func (r *Repository) MarkAllRead(ctx context.Context, userID bson.ObjectID) (int
 	return result.ModifiedCount, nil
 }
 
+// DeleteByEventID removes all notifications that reference a given event (cleanup after admin event delete).
+func (r *Repository) DeleteByEventID(ctx context.Context, eventID bson.ObjectID) (int64, error) {
+	result, err := r.col.DeleteMany(ctx, bson.M{"event_id": eventID})
+	if err != nil {
+		return 0, err
+	}
+	return result.DeletedCount, nil
+}
+
+// DeleteByEventIDs removes all notifications that reference any of the given events.
+func (r *Repository) DeleteByEventIDs(ctx context.Context, eventIDs []bson.ObjectID) (int64, error) {
+	if len(eventIDs) == 0 {
+		return 0, nil
+	}
+	result, err := r.col.DeleteMany(ctx, bson.M{"event_id": bson.M{"$in": eventIDs}})
+	if err != nil {
+		return 0, err
+	}
+	return result.DeletedCount, nil
+}
+
+// DeleteOrphanCriticalNearby removes critical_nearby notifications that have no event_id
+// (leftovers from the earlier pointer+omitempty bug). Safe because real critical_nearby
+// notifications always carry a non-zero event_id now.
+func (r *Repository) DeleteOrphanCriticalNearby(ctx context.Context) (int64, error) {
+	filter := bson.M{
+		"type": "critical_nearby",
+		"$or": []bson.M{
+			{"event_id": bson.M{"$exists": false}},
+			{"event_id": bson.ObjectID{}},
+		},
+	}
+	result, err := r.col.DeleteMany(ctx, filter)
+	if err != nil {
+		return 0, err
+	}
+	return result.DeletedCount, nil
+}
+
 // ExistsForUserAndEvent checks if a notification was already sent for a user/event pair (dedup)
 func (r *Repository) ExistsForUserAndEvent(ctx context.Context, userID, eventID bson.ObjectID) (bool, error) {
 	count, err := r.col.CountDocuments(ctx,

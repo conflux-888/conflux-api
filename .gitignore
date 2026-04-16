@@ -11,3 +11,7 @@ vendor/
 requirement.md
 
 conflux-ios/*
+
+admin/node_modules
+admin/dist
+!admin/dist/.gitkeep

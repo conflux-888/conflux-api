@@ -15,6 +15,7 @@ import (
 	"github.com/conflux-888/conflux-api/internal/event"
 	"github.com/conflux-888/conflux-api/internal/infrastructure/database"
 	"github.com/conflux-888/conflux-api/internal/infrastructure/server"
+	"github.com/conflux-888/conflux-api/internal/infrastructure/staticfs"
 	"github.com/conflux-888/conflux-api/internal/notification"
 	"github.com/conflux-888/conflux-api/internal/preferences"
 	"github.com/conflux-888/conflux-api/internal/report"
@@ -80,11 +81,14 @@ func main() {
 	notifSvc := notification.NewService(notifRepo, prefsRepo)
 	notifHandler := notification.NewHandler(notifSvc)
 
-	// Hook notification service into sync
+	// Hook notification service into sync + event (for admin seed)
 	syncSvc.SetNotifier(notifSvc)
+	eventSvc.SetNotifier(notifSvc)
 
 	// Router
-	router, v1 := server.NewRouter()
+	router, v1 := server.NewRouter(server.RouterOptions{
+		CORSAllowLocalhost: cfg.CORSAllowLocalhost,
+	})
 	user.RegisterRoutes(v1, userHandler, authMW)
 	event.RegisterRoutes(v1, eventHandler, authMW)
 	report.RegisterRoutes(v1, reportHandler, authMW)
@@ -112,6 +116,11 @@ func main() {
 
 	// Swagger (outside /api/v1)
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+
+	// Admin UI (outside /api/v1), served from embedded dist
+	if cfg.AdminUIEnabled {
+		staticfs.Register(router, adminFS(), "/admin")
+	}
 
 	// Start background jobs
 	go syncSvc.Start(ctx)

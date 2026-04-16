@@ -165,6 +165,88 @@ func (r *Repository) SoftDeleteByExternalIDs(ctx context.Context, externalIDs []
 	return result.ModifiedCount, nil
 }
 
+// FindSeeded returns admin-seeded events (external_id prefix ADMIN_TEST_) sorted by newest first.
+func (r *Repository) FindSeeded(ctx context.Context, page, limit int) ([]Event, int64, error) {
+	filter := bson.M{
+		"external_id": bson.M{"$regex": "^ADMIN_TEST_"},
+		"source":      SourceGDELT,
+	}
+
+	total, err := r.col.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	skip := int64((page - 1) * limit)
+	cursor, err := r.col.Find(ctx, filter,
+		options.Find().
+			SetSort(bson.D{{Key: "created_at", Value: -1}}).
+			SetSkip(skip).
+			SetLimit(int64(limit)),
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	events := []Event{}
+	if err := cursor.All(ctx, &events); err != nil {
+		return nil, 0, err
+	}
+	return events, total, nil
+}
+
+// HardDeleteByID permanently removes an event. Used only by admin cleanup.
+// Returns ErrNotFound if no matching document.
+func (r *Repository) HardDeleteByID(ctx context.Context, id bson.ObjectID) error {
+	result, err := r.col.DeleteOne(ctx, bson.M{"_id": id})
+	if err != nil {
+		return err
+	}
+	if result.DeletedCount == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// FindSeededIDs returns the IDs of all admin-seeded events (used for bulk cleanup).
+func (r *Repository) FindSeededIDs(ctx context.Context) ([]bson.ObjectID, error) {
+	filter := bson.M{
+		"external_id": bson.M{"$regex": "^ADMIN_TEST_"},
+		"source":      SourceGDELT,
+	}
+	cursor, err := r.col.Find(ctx, filter, options.Find().SetProjection(bson.M{"_id": 1}))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var rows []struct {
+		ID bson.ObjectID `bson:"_id"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	ids := make([]bson.ObjectID, len(rows))
+	for i, r := range rows {
+		ids[i] = r.ID
+	}
+	return ids, nil
+}
+
+// HardDeleteSeeded permanently removes all admin-seeded events.
+func (r *Repository) HardDeleteSeeded(ctx context.Context) (int64, error) {
+	filter := bson.M{
+		"external_id": bson.M{"$regex": "^ADMIN_TEST_"},
+		"source":      SourceGDELT,
+	}
+	result, err := r.col.DeleteMany(ctx, filter)
+	if err != nil {
+		return 0, err
+	}
+	return result.DeletedCount, nil
+}
+
 func (r *Repository) FindByID(ctx context.Context, id bson.ObjectID) (*Event, error) {
 	var e Event
 	err := r.col.FindOne(ctx, bson.M{"_id": id}).Decode(&e)
@@ -178,8 +260,18 @@ func (r *Repository) Create(ctx context.Context, e *Event) error {
 	now := time.Now()
 	e.CreatedAt = now
 	e.UpdatedAt = now
-	_, err := r.col.InsertOne(ctx, e)
-	return err
+	result, err := r.col.InsertOne(ctx, e)
+	if err != nil {
+		return err
+	}
+	// v2 driver populates via reflection when _id has omitempty+zero,
+	// but be defensive in case that changes.
+	if e.ID.IsZero() {
+		if oid, ok := result.InsertedID.(bson.ObjectID); ok {
+			e.ID = oid
+		}
+	}
+	return nil
 }
 
 func (r *Repository) FindByReportedBy(ctx context.Context, userID bson.ObjectID, page, limit int) ([]Event, int64, error) {

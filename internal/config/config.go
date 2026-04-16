@@ -16,6 +16,8 @@ type Config struct {
 	GeminiAPIKey            string
 	SummaryCheckIntervalMin int
 	SummaryBackfillDays     int
+	CORSAllowLocalhost      bool
+	AdminUIEnabled          bool
 	LogLevel                string
 }
 
@@ -31,6 +33,8 @@ func Load() *Config {
 		GeminiAPIKey:            os.Getenv("GEMINI_API_KEY"),
 		SummaryCheckIntervalMin: getEnvInt("SUMMARY_CHECK_INTERVAL_MIN", 30),
 		SummaryBackfillDays:     getEnvInt("SUMMARY_BACKFILL_DAYS", 7),
+		CORSAllowLocalhost:      getEnvBool("CORS_ALLOW_LOCALHOST", false),
+		AdminUIEnabled:          getEnvBool("ADMIN_UI_ENABLED", true),
 		LogLevel:                getEnv("LOG_LEVEL", "info"),
 	}
 }
@@ -46,6 +50,15 @@ func getEnvInt(key string, fallback int) int {
 	if v := os.Getenv(key); v != "" {
 		if i, err := strconv.Atoi(v); err == nil {
 			return i
+		}
+	}
+	return fallback
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	if v := os.Getenv(key); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
 		}
 	}
 	return fallback
