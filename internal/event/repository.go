@@ -178,7 +178,7 @@ func (r *Repository) FindByReportedBy(ctx context.Context, userID bson.ObjectID,
 	}
 	defer cursor.Close(ctx)
 
-	var events []Event
+	events := []Event{}
 	if err := cursor.All(ctx, &events); err != nil {
 		return nil, 0, err
 	}
@@ -258,7 +258,7 @@ func (r *Repository) Find(ctx context.Context, f EventFilter) ([]Event, int64, e
 	}
 	defer cursor.Close(ctx)
 
-	var events []Event
+	events := []Event{}
 	if err := cursor.All(ctx, &events); err != nil {
 		return nil, 0, err
 	}
@@ -289,7 +289,7 @@ func (r *Repository) FindNearby(ctx context.Context, lng, lat, radiusKM float64,
 	}
 	defer cursor.Close(ctx)
 
-	var events []Event
+	events := []Event{}
 	if err := cursor.All(ctx, &events); err != nil {
 		return nil, err
 	}
