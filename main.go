@@ -8,6 +8,7 @@ import (
 	"time"
 
 	_ "github.com/conflux-888/conflux-api/swagger"
+	"github.com/conflux-888/conflux-api/internal/adminauth"
 	"github.com/conflux-888/conflux-api/internal/common/gemini"
 	"github.com/conflux-888/conflux-api/internal/common/logger"
 	"github.com/conflux-888/conflux-api/internal/common/middleware"
@@ -48,8 +49,16 @@ func main() {
 		log.Fatal().Err(err).Msg("[main] failed to connect to database")
 	}
 
-	// Auth middleware
+	// Auth middlewares
 	authMW := middleware.Auth(cfg.JWTSecret)
+	adminAuthMW := middleware.AdminAuth(cfg.JWTSecret)
+
+	// Admin auth domain (ADMIN_USER / ADMIN_PASSWORD)
+	adminAuthSvc := adminauth.NewService(cfg.AdminUser, cfg.AdminPasswordHash, cfg.JWTSecret)
+	adminAuthHandler := adminauth.NewHandler(adminAuthSvc)
+	if !adminAuthSvc.Configured() {
+		log.Warn().Msg("[main] ADMIN_USER / ADMIN_PASSWORD not set — admin endpoints will reject all traffic")
+	}
 
 	// User domain
 	userRepo := user.NewRepository(db)
@@ -89,10 +98,11 @@ func main() {
 	router, v1 := server.NewRouter(server.RouterOptions{
 		CORSAllowLocalhost: cfg.CORSAllowLocalhost,
 	})
+	adminauth.RegisterRoutes(v1, adminAuthHandler)
 	user.RegisterRoutes(v1, userHandler, authMW)
-	event.RegisterRoutes(v1, eventHandler, authMW)
+	event.RegisterRoutes(v1, eventHandler, authMW, adminAuthMW)
 	report.RegisterRoutes(v1, reportHandler, authMW)
-	sync.RegisterRoutes(v1, syncHandler, authMW)
+	sync.RegisterRoutes(v1, syncHandler, adminAuthMW)
 	preferences.RegisterRoutes(v1, prefsHandler, authMW)
 	notification.RegisterRoutes(v1, notifHandler, authMW)
 
@@ -109,7 +119,7 @@ func main() {
 		summarySvc.SetNotifier(notifSvc)
 		summaryHandler := summary.NewHandler(summarySvc)
 		summaryScheduler = summary.NewScheduler(summarySvc, cfg.SummaryCheckIntervalMin, cfg.SummaryBackfillDays)
-		summary.RegisterRoutes(v1, summaryHandler, authMW)
+		summary.RegisterRoutes(v1, summaryHandler, authMW, adminAuthMW)
 	} else {
 		log.Warn().Msg("[main] GEMINI_API_KEY not set, summary feature disabled")
 	}

@@ -1,5 +1,15 @@
 basePath: /api/v1
 definitions:
+  adminauth.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
   event.SeedAdminEventRequest:
     properties:
       country:
@@ -160,6 +170,40 @@ info:
   title: Conflux API
   version: "1.0"
 paths:
+  /admin/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates an admin using ADMIN_USER / ADMIN_PASSWORD env credentials.
+        Returns an admin-scoped JWT.
+      parameters:
+      - description: Admin credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/adminauth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Admin login
+      tags:
+      - admin
   /admin/events/{id}:
     delete:
       description: Hard-deletes the event and its related notifications. Only works

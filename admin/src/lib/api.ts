@@ -65,15 +65,13 @@ async function request<T>(path: string, opts: Options = {}): Promise<T> {
 }
 
 export const api = {
-  // auth
-  login: (email: string, password: string) =>
-    request<{ access_token: string; expires_in: number }>("/auth/login", {
+  // admin auth
+  login: (username: string, password: string) =>
+    request<{ access_token: string; expires_in: number }>("/admin/auth/login", {
       method: "POST",
-      body: { email, password },
+      body: { username, password },
       auth: false,
     }),
-  me: () =>
-    request<{ id: string; email: string; display_name: string }>("/users/me"),
 
   // admin: events
   seedEvent: (body: SeedEventRequest) =>
@@ -106,33 +104,6 @@ export const api = {
     request<DailySummary>("/admin/summaries/trigger", {
       method: "POST",
       body: { date },
-    }),
-  getSummary: (date: string) => request<DailySummary>(`/summaries/${date}`),
-
-  // notifications
-  listNotifications: (opts?: { unreadOnly?: boolean; page?: number; limit?: number }) =>
-    request<Notification[]>("/notifications/me", {
-      query: {
-        unread_only: opts?.unreadOnly,
-        page: opts?.page,
-        limit: opts?.limit,
-      },
-    }),
-  unreadCount: () =>
-    request<{ unread_count: number }>("/notifications/me/unread-count"),
-  markRead: (id: string) =>
-    request<{ message: string }>(`/notifications/${id}/read`, { method: "POST" }),
-  markAllRead: () =>
-    request<{ modified_count: number }>("/notifications/read-all", { method: "POST" }),
-
-  // preferences
-  getPreferences: () => request<UserPreferences>("/preferences"),
-  updatePreferences: (body: Partial<UserPreferences>) =>
-    request<UserPreferences>("/preferences", { method: "PUT", body }),
-  updateLocation: (latitude: number, longitude: number) =>
-    request<{ message: string }>("/preferences/location", {
-      method: "PUT",
-      body: { latitude, longitude },
     }),
 };
 
@@ -186,22 +157,3 @@ export type DailySummary = {
   generated_at: string;
 };
 
-export type Notification = {
-  id: string;
-  type: "critical_nearby" | "daily_briefing";
-  title: string;
-  body: string;
-  event_id?: string;
-  summary_date?: string;
-  distance_km?: number;
-  read_at?: string | null;
-  created_at: string;
-};
-
-export type UserPreferences = {
-  notifications_enabled: boolean;
-  min_severity: Severity;
-  radius_km: number;
-  last_location?: { type: string; coordinates: [number, number] } | null;
-  last_location_at?: string | null;
-};

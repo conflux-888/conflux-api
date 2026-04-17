@@ -5,7 +5,7 @@ import { api, ApiError } from "@/lib/api";
 import { setAuth } from "@/lib/auth";
 
 export function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,8 +16,8 @@ export function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const { access_token } = await api.login(email, password);
-      setAuth(access_token, email);
+      const { access_token } = await api.login(username, password);
+      setAuth(access_token, username);
       navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Login failed");
@@ -41,15 +41,16 @@ export function LoginPage() {
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <label className="field-label">Email</label>
+            <label className="field-label">Username</label>
             <input
-              type="email"
+              type="text"
               required
               autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               className="field-input"
-              placeholder="admin@example.com"
+              placeholder="admin"
             />
           </div>
           <div>

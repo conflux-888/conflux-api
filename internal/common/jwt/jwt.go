@@ -9,7 +9,8 @@ import (
 
 type Claims struct {
 	jwt.RegisteredClaims
-	Email string `json:"email"`
+	Email string `json:"email,omitempty"`
+	Type  string `json:"typ,omitempty"` // "admin" for admin tokens, empty for user tokens
 }
 
 func GenerateToken(userID, email, secret string, expiry time.Duration) (string, error) {
@@ -23,6 +24,21 @@ func GenerateToken(userID, email, secret string, expiry time.Duration) (string, 
 		Email: email,
 	}
 
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}
+
+// GenerateAdminToken issues a JWT marked with typ="admin" using the same HS256 secret.
+func GenerateAdminToken(username, secret string, expiry time.Duration) (string, error) {
+	now := time.Now()
+	claims := Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   username,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(expiry)),
+		},
+		Type: "admin",
+	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))
 }

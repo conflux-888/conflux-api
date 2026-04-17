@@ -6,7 +6,6 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { SeedEventPage } from "./pages/SeedEventPage";
 import { SyncTriggerPage } from "./pages/SyncTriggerPage";
 import { SummaryTriggerPage } from "./pages/SummaryTriggerPage";
-import { NotificationsPage } from "./pages/NotificationsPage";
 
 export default function App() {
   return (
@@ -23,7 +22,6 @@ export default function App() {
         <Route path="/seed" element={<SeedEventPage />} />
         <Route path="/sync" element={<SyncTriggerPage />} />
         <Route path="/summary" element={<SummaryTriggerPage />} />
-        <Route path="/notifications" element={<NotificationsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
