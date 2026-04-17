@@ -2,7 +2,7 @@ package summary
 
 import "github.com/gin-gonic/gin"
 
-func RegisterRoutes(r *gin.RouterGroup, h *Handler, authMiddleware gin.HandlerFunc) {
+func RegisterRoutes(r *gin.RouterGroup, h *Handler, authMiddleware, adminAuthMiddleware gin.HandlerFunc) {
 	summaries := r.Group("/summaries")
 	summaries.Use(authMiddleware)
 	{
@@ -12,7 +12,7 @@ func RegisterRoutes(r *gin.RouterGroup, h *Handler, authMiddleware gin.HandlerFu
 	}
 
 	admin := r.Group("/admin/summaries")
-	admin.Use(authMiddleware)
+	admin.Use(adminAuthMiddleware)
 	{
 		admin.POST("/trigger", h.HandleTriggerSummary)
 	}

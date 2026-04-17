@@ -1,5 +1,63 @@
 basePath: /api/v1
 definitions:
+  adminauth.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  event.SeedAdminEventRequest:
+    properties:
+      country:
+        type: string
+      description:
+        type: string
+      event_root_code:
+        enum:
+        - "14"
+        - "15"
+        - "16"
+        - "17"
+        - "18"
+        - "19"
+        - "20"
+        type: string
+      event_type:
+        type: string
+      latitude:
+        maximum: 90
+        minimum: -90
+        type: number
+      location_name:
+        type: string
+      longitude:
+        maximum: 180
+        minimum: -180
+        type: number
+      num_articles:
+        type: integer
+      severity:
+        enum:
+        - critical
+        - high
+        - medium
+        - low
+        type: string
+      title:
+        maxLength: 200
+        minLength: 3
+        type: string
+    required:
+    - country
+    - latitude
+    - longitude
+    - severity
+    - title
+    type: object
   preferences.UpdateLocationRequest:
     properties:
       latitude:
@@ -112,6 +170,163 @@ info:
   title: Conflux API
   version: "1.0"
 paths:
+  /admin/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates an admin using ADMIN_USER / ADMIN_PASSWORD env credentials.
+        Returns an admin-scoped JWT.
+      parameters:
+      - description: Admin credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/adminauth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Admin login
+      tags:
+      - admin
+  /admin/events/{id}:
+    delete:
+      description: Hard-deletes the event and its related notifications. Only works
+        on seeded events (external_id prefix ADMIN_TEST_).
+      parameters:
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete an admin-seeded event
+      tags:
+      - admin
+  /admin/events/seed:
+    post:
+      consumes:
+      - application/json
+      description: Inserts an admin-controlled event and triggers the same notification
+        pipeline as GDELT sync. Used for testing notification delivery.
+      parameters:
+      - description: Seed parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/event.SeedAdminEventRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Seed a synthetic event (admin only)
+      tags:
+      - admin
+  /admin/events/seeded:
+    delete:
+      description: Hard-deletes every seeded event (external_id prefix ADMIN_TEST_)
+        and their notifications.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete ALL admin-seeded events
+      tags:
+      - admin
+    get:
+      description: Returns events created via admin seed (external_id prefix ADMIN_TEST_),
+        newest first.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List admin-seeded events
+      tags:
+      - admin
   /admin/summaries/trigger:
     post:
       consumes:

@@ -44,6 +44,19 @@ type Event struct {
 	UpdatedAt     time.Time      `bson:"updated_at" json:"updated_at"`
 }
 
+type SeedAdminEventRequest struct {
+	Title         string  `json:"title" binding:"required,min=3,max=200"`
+	Latitude      float64 `json:"latitude" binding:"required,min=-90,max=90"`
+	Longitude     float64 `json:"longitude" binding:"required,min=-180,max=180"`
+	Severity      string  `json:"severity" binding:"required,oneof=critical high medium low"`
+	Country       string  `json:"country" binding:"required,len=2"`
+	LocationName  string  `json:"location_name"`
+	EventType     string  `json:"event_type"`
+	EventRootCode string  `json:"event_root_code" binding:"omitempty,oneof=14 15 16 17 18 19 20"`
+	Description   string  `json:"description"`
+	NumArticles   int     `json:"num_articles"`
+}
+
 type EventFilter struct {
 	Severity  []string
 	EventType string

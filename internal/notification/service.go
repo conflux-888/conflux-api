@@ -72,13 +72,12 @@ func (s *Service) NotifyNearbyCritical(ctx context.Context, events []event.Event
 				continue
 			}
 
-			eventIDCopy := e.ID
 			notifs = append(notifs, Notification{
 				UserID:     pref.UserID,
 				Type:       TypeCriticalNearby,
 				Title:      fmt.Sprintf("Critical threat %.1fkm from you", distKm),
 				Body:       e.Title,
-				EventID:    &eventIDCopy,
+				EventID:    e.ID,
 				DistanceKM: distKm,
 			})
 		}
@@ -93,6 +92,38 @@ func (s *Service) NotifyNearbyCritical(ctx context.Context, events []event.Event
 	}
 
 	log.Info().Int("created", created).Msg("[notification.NotifyNearbyCritical] done")
+}
+
+// DeleteNotificationsForEvent removes all notifications referencing an event.
+// Used by admin event cleanup to prevent stale references.
+func (s *Service) DeleteNotificationsForEvent(ctx context.Context, eventID bson.ObjectID) int64 {
+	deleted, err := s.repo.DeleteByEventID(ctx, eventID)
+	if err != nil {
+		log.Error().Err(err).Str("event_id", eventID.Hex()).Msg("[notification.DeleteNotificationsForEvent] failed")
+		return 0
+	}
+	log.Info().Str("event_id", eventID.Hex()).Int64("deleted", deleted).Msg("[notification.DeleteNotificationsForEvent] done")
+	return deleted
+}
+
+// DeleteNotificationsForEvents removes notifications referencing any of the given events,
+// plus any orphan critical_nearby notifications (missing event_id from a prior bug).
+func (s *Service) DeleteNotificationsForEvents(ctx context.Context, eventIDs []bson.ObjectID) int64 {
+	deleted, err := s.repo.DeleteByEventIDs(ctx, eventIDs)
+	if err != nil {
+		log.Error().Err(err).Int("events", len(eventIDs)).Msg("[notification.DeleteNotificationsForEvents] failed")
+		return 0
+	}
+
+	orphans, err := s.repo.DeleteOrphanCriticalNearby(ctx)
+	if err != nil {
+		log.Warn().Err(err).Msg("[notification.DeleteNotificationsForEvents] failed to clean orphans")
+	}
+
+	total := deleted + orphans
+	log.Info().Int("events", len(eventIDs)).Int64("matched", deleted).Int64("orphans", orphans).
+		Msg("[notification.DeleteNotificationsForEvents] done")
+	return total
 }
 
 // NotifyDailyBriefing broadcasts a notification to all users when a daily summary is completed.

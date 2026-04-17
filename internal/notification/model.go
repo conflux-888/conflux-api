@@ -18,7 +18,7 @@ type Notification struct {
 	Type        string         `bson:"type" json:"type"`
 	Title       string         `bson:"title" json:"title"`
 	Body        string         `bson:"body" json:"body"`
-	EventID     *bson.ObjectID `bson:"event_id,omitempty" json:"event_id,omitempty"`
+	EventID     bson.ObjectID  `bson:"event_id,omitempty" json:"event_id,omitempty"`
 	SummaryDate string         `bson:"summary_date,omitempty" json:"summary_date,omitempty"`
 	DistanceKM  float64        `bson:"distance_km,omitempty" json:"distance_km,omitempty"`
 	ReadAt      *time.Time     `bson:"read_at,omitempty" json:"read_at,omitempty"`
