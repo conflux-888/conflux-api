@@ -1,22 +1,22 @@
 const TOKEN_KEY = "conflux_admin_token";
-const EMAIL_KEY = "conflux_admin_email";
+const USER_KEY = "conflux_admin_user";
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 
-export function setAuth(token: string, email: string) {
+export function setAuth(token: string, username: string) {
   localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(EMAIL_KEY, email);
+  localStorage.setItem(USER_KEY, username);
 }
 
-export function getEmail(): string | null {
-  return localStorage.getItem(EMAIL_KEY);
+export function getUsername(): string | null {
+  return localStorage.getItem(USER_KEY);
 }
 
 export function clearAuth() {
   localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(EMAIL_KEY);
+  localStorage.removeItem(USER_KEY);
 }
 
 export function isAuthenticated(): boolean {

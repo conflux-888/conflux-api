@@ -1,6 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  BellRing,
   Boxes,
   Gauge,
   LogOut,
@@ -8,9 +7,7 @@ import {
   Rocket,
   Newspaper,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import { clearAuth, getEmail } from "@/lib/auth";
+import { clearAuth, getUsername } from "@/lib/auth";
 import clsx from "clsx";
 
 const NAV = [
@@ -18,18 +15,11 @@ const NAV = [
   { to: "/seed", label: "Seed Event", icon: Rocket },
   { to: "/sync", label: "GDELT Sync", icon: RefreshCw },
   { to: "/summary", label: "Daily Summary", icon: Newspaper },
-  { to: "/notifications", label: "Notifications", icon: BellRing },
 ];
 
 export function Shell() {
   const navigate = useNavigate();
-  const email = getEmail();
-
-  const { data: unread } = useQuery({
-    queryKey: ["unread-count"],
-    queryFn: api.unreadCount,
-    refetchInterval: 5000,
-  });
+  const username = getUsername();
 
   function logout() {
     clearAuth();
@@ -66,17 +56,12 @@ export function Shell() {
             >
               <Icon className="h-4 w-4" />
               <span className="flex-1">{label}</span>
-              {to === "/notifications" && unread?.unread_count ? (
-                <span className="rounded-full bg-critical px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  {unread.unread_count}
-                </span>
-              ) : null}
             </NavLink>
           ))}
         </nav>
 
         <div className="mt-4 border-t border-surface-border pt-4">
-          <div className="mb-2 px-2 text-xs text-ink-muted">{email}</div>
+          <div className="mb-2 px-2 text-xs text-ink-muted">{username}</div>
           <button
             onClick={logout}
             className="flex w-full items-center gap-2 rounded-btn px-3 py-2 text-sm text-ink-muted hover:bg-surface-raised hover:text-ink"

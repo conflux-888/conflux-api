@@ -10,7 +10,7 @@ tmp/
 vendor/
 requirement.md
 
-conflux-ios/*
+conflux-ios
 
 admin/node_modules
 admin/dist

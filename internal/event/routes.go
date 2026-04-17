@@ -2,7 +2,7 @@ package event
 
 import "github.com/gin-gonic/gin"
 
-func RegisterRoutes(r *gin.RouterGroup, h *Handler, authMiddleware gin.HandlerFunc) {
+func RegisterRoutes(r *gin.RouterGroup, h *Handler, authMiddleware, adminAuthMiddleware gin.HandlerFunc) {
 	events := r.Group("/events")
 	events.Use(authMiddleware)
 	{
@@ -12,7 +12,7 @@ func RegisterRoutes(r *gin.RouterGroup, h *Handler, authMiddleware gin.HandlerFu
 	}
 
 	admin := r.Group("/admin/events")
-	admin.Use(authMiddleware)
+	admin.Use(adminAuthMiddleware)
 	{
 		admin.POST("/seed", h.HandleSeedEvent)
 		admin.GET("/seeded", h.HandleListSeededEvents)
