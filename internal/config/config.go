@@ -23,6 +23,13 @@ type Config struct {
 	AdminUser               string
 	AdminPasswordHash       []byte // pre-hashed at Load time; nil if ADMIN_PASSWORD not set
 	LogLevel                string
+
+	// APNs (iOS push notifications) — push disabled if any of KeyPath/KeyID/TeamID is empty.
+	APNSKeyPath    string
+	APNSKeyID      string
+	APNSTeamID     string
+	APNSBundleID   string
+	APNSProduction bool
 }
 
 func Load() *Config {
@@ -41,6 +48,12 @@ func Load() *Config {
 		AdminUIEnabled:          getEnvBool("ADMIN_UI_ENABLED", true),
 		AdminUser:               os.Getenv("ADMIN_USER"),
 		LogLevel:                getEnv("LOG_LEVEL", "info"),
+
+		APNSKeyPath:    os.Getenv("APNS_KEY_PATH"),
+		APNSKeyID:      os.Getenv("APNS_KEY_ID"),
+		APNSTeamID:     os.Getenv("APNS_TEAM_ID"),
+		APNSBundleID:   getEnv("APNS_BUNDLE_ID", "com.conflux.app"),
+		APNSProduction: getEnvBool("APNS_PRODUCTION", false),
 	}
 
 	// Hash ADMIN_PASSWORD once at startup; raw value never persists in memory.
