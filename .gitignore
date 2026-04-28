@@ -1,5 +1,6 @@
 .env
 tmp/
+*.p8
 *.exe
 *.exe~
 *.dll

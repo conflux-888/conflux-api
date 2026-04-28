@@ -13,6 +13,7 @@ import (
 	"github.com/conflux-888/conflux-api/internal/common/logger"
 	"github.com/conflux-888/conflux-api/internal/common/middleware"
 	"github.com/conflux-888/conflux-api/internal/config"
+	"github.com/conflux-888/conflux-api/internal/devicetoken"
 	"github.com/conflux-888/conflux-api/internal/event"
 	"github.com/conflux-888/conflux-api/internal/infrastructure/database"
 	"github.com/conflux-888/conflux-api/internal/infrastructure/server"
@@ -90,6 +91,31 @@ func main() {
 	notifSvc := notification.NewService(notifRepo, prefsRepo)
 	notifHandler := notification.NewHandler(notifSvc)
 
+	// Device token domain (iOS push)
+	deviceTokenRepo := devicetoken.NewRepository(db)
+	deviceTokenSvc := devicetoken.NewService(deviceTokenRepo)
+	deviceTokenHandler := devicetoken.NewHandler(deviceTokenSvc)
+
+	// APNs pusher — only enabled if all required APNS_* env vars are set.
+	apnsCfg := notification.APNSConfig{
+		KeyPath:    cfg.APNSKeyPath,
+		KeyID:      cfg.APNSKeyID,
+		TeamID:     cfg.APNSTeamID,
+		BundleID:   cfg.APNSBundleID,
+		Production: cfg.APNSProduction,
+	}
+	if apnsCfg.Enabled() {
+		pusher, err := notification.NewAPNSPusher(apnsCfg, deviceTokenRepo)
+		if err != nil {
+			log.Warn().Err(err).Msg("[main] failed to init APNs pusher; push disabled")
+		} else {
+			notifSvc.SetPusher(pusher)
+			log.Info().Bool("production", cfg.APNSProduction).Str("bundle", cfg.APNSBundleID).Msg("[main] APNs pusher enabled")
+		}
+	} else {
+		log.Warn().Msg("[main] APNS_* env not fully set; iOS push disabled")
+	}
+
 	// Hook notification service into sync + event (for admin seed)
 	syncSvc.SetNotifier(notifSvc)
 	eventSvc.SetNotifier(notifSvc)
@@ -105,6 +131,7 @@ func main() {
 	sync.RegisterRoutes(v1, syncHandler, adminAuthMW)
 	preferences.RegisterRoutes(v1, prefsHandler, authMW)
 	notification.RegisterRoutes(v1, notifHandler, authMW)
+	devicetoken.RegisterRoutes(v1, deviceTokenHandler, authMW)
 
 	// Summary domain (optional — requires GEMINI_API_KEY)
 	var summaryScheduler *summary.Scheduler

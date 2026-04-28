@@ -19,14 +19,23 @@ var severityRank = map[string]int{
 	"critical": 3,
 }
 
+// Pusher delivers notifications to devices (e.g. APNs, FCM).
+type Pusher interface {
+	Push(ctx context.Context, userIDs []bson.ObjectID, title, body string, data map[string]interface{}, badge *int)
+}
+
 type Service struct {
 	repo      *Repository
 	prefsRepo *preferences.Repository
+	pusher    Pusher
 }
 
 func NewService(repo *Repository, prefsRepo *preferences.Repository) *Service {
 	return &Service{repo: repo, prefsRepo: prefsRepo}
 }
+
+// SetPusher injects a push notification provider. Optional — if unset, only in-app notifications are created.
+func (s *Service) SetPusher(p Pusher) { s.pusher = p }
 
 // NotifyNearbyCritical is called by sync after new events are inserted.
 // Creates notifications for users within their configured radius of new critical events.
@@ -88,6 +97,23 @@ func (s *Service) NotifyNearbyCritical(ctx context.Context, events []event.Event
 				continue
 			}
 			created += len(notifs)
+
+			// Fan out APNs sends. Each notif has a unique title (distance varies), so push per-user.
+			if s.pusher != nil {
+				eventIDHex := e.ID.Hex()
+				for _, n := range notifs {
+					s.pusher.Push(ctx,
+						[]bson.ObjectID{n.UserID},
+						n.Title,
+						n.Body,
+						map[string]interface{}{
+							"type":     n.Type,
+							"event_id": eventIDHex,
+						},
+						nil,
+					)
+				}
+			}
 		}
 	}
 
@@ -152,6 +178,23 @@ func (s *Service) NotifyDailyBriefing(ctx context.Context, summaryDate, title st
 		return
 	}
 	log.Info().Int("created", len(notifs)).Msg("[notification.NotifyDailyBriefing] done")
+
+	if s.pusher != nil && len(notifs) > 0 {
+		ids := make([]bson.ObjectID, len(notifs))
+		for i, n := range notifs {
+			ids[i] = n.UserID
+		}
+		s.pusher.Push(ctx,
+			ids,
+			"Your daily conflict briefing is ready",
+			title,
+			map[string]interface{}{
+				"type":         TypeDailyBriefing,
+				"summary_date": summaryDate,
+			},
+			nil,
+		)
+	}
 }
 
 // User-facing methods
