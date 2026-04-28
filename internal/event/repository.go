@@ -21,8 +21,14 @@ func NewRepository(db *mongo.Database) *Repository {
 
 	indexes := []mongo.IndexModel{
 		{
-			Keys:    bson.D{{Key: "external_id", Value: 1}, {Key: "source", Value: 1}},
-			Options: options.Index().SetUnique(true).SetSparse(true),
+			// Partial unique: only enforce when external_id is a string. Sparse compound
+			// indexes still index docs where ANY indexed field is present (source is always
+			// present for user_report rows), causing false dup-key errors against the
+			// missing-field "null" key. Partial filter scopes uniqueness to GDELT-style rows.
+			Keys: bson.D{{Key: "external_id", Value: 1}, {Key: "source", Value: 1}},
+			Options: options.Index().SetUnique(true).SetPartialFilterExpression(
+				bson.M{"external_id": bson.M{"$type": "string"}},
+			),
 		},
 		{
 			Keys: bson.D{{Key: "location", Value: "2dsphere"}},
